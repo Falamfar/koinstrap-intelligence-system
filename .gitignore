@@ -1,0 +1,18 @@
+#python 
+venv/
+__pycache__/
+*.pyc
+
+#data
+
+data/raw/
+data/processed/
+
+
+#confif with secrets
+config/.env
+
+#logs
+
+logs/
+
