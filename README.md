@@ -17,6 +17,7 @@ The system is built with modular architecture, enabling scalable integration of 
 This layered approach ensures flexibility, traceability, and the ability to extend the system over time.
 
 #System Architecture & Layers
+
 Layer 1 → Data Acquisition (External APIs: CoinGecko, Twitter)
         ↓
 Layer 2 → Ingestion & Normalization (SQL tables, structured)
@@ -27,6 +28,7 @@ Layer 3 → Analytics & Decision Support (Dashboards, reports)
 Note: Layers are implemented modularly to allow future integration of internal data and advanced analytics.
 
 #Project Structure
+
 koinstrap/
 ├── data/               # (Optional for future file-based storage/backups)
 ├── scripts/
@@ -57,30 +59,12 @@ koinstrap/
 
 -Integrate internal KoinStrap business data
 
-#Environment Variables
-
-COINGECKO_API_KEY – CoinGecko API key
-
-DB_HOST – MySQL host (usually localhost)
-
-DB_USER – MySQL user (application user, e.g., koinstrap_user)
-
-DB_PASSWORD – MySQL password
-
-DB_NAME – Database name (Koinstrap)
 
 
-
-#Table Structure: raw_crypto_market_data
-Field	Type	Null	Key	Extra
-id	int	NO	PRI	auto_increment
-symbol	varchar(10)	YES		
-name	varchar(50)	YES		
-price_usd	decimal(18,8)	YES		
-volume_24h_usd	decimal(30,2)	YES		
-observed_at	datetime	YES		
+	
 
 #Changelog / Versioning
+
 -v1.0 – 2025-12-22
 
 -Added ingest_coingecko_v1.py to fetch BTC & ETH market data

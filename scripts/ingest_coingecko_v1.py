@@ -1,4 +1,5 @@
 import os
+import logging 
 import requests
 import mysql.connector
 from datetime import datetime, timezone
@@ -13,6 +14,17 @@ DB_HOST = os.getenv("DB_HOST")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_NAME = os.getenv("DB_NAME")
+
+#logging configuration
+
+LOG_FILE = "logs/ingest_coingecko_v1.log"
+
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s:%(message)s"
+)
+
 
 #coingecko configuration
 
@@ -41,7 +53,7 @@ def get_db_connection():
 
 #ingestion logic
 def ingest_market_data():
-    print("fetching market data from CoinGecko...")
+    logging.info("fetching market data from CoinGecko...")
 
     response = requests.get(
         COINGECKO_URL,
@@ -51,11 +63,14 @@ def ingest_market_data():
     )
 
     if response.status_code != 200:
+        logging.error(f"CoinGecko API error: {response.status_code}")
         raise Exception(f"CoinGecko API error: {response.status_code}")
 
     data = response.json()
     if not data:
-        raise Exception("No data received from CoinGecko API")
+        logging.warning("No data received from CoinGecko API")
+        return
+
 
     conn = get_db_connection()        
     cursor = conn.cursor()
@@ -82,14 +97,17 @@ def ingest_market_data():
     conn.commit()
     cursor.close()
     conn.close()
-
-    print(f"successfully ingested {len(data)} records at {now}")
+    logging.info(f"successfully ingested {len(data)} records at {now}")
+   
 
 #Entry point    
 if __name__ == "__main__":
     try:
         ingest_market_data()
+        logging.info("ingestion completed successfully.")
     except Exception as e:
-        print(f"ingestion failed: {e}")
+        logging.exception(f"ingestion failed: {e}")
+
+
 
         
