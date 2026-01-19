@@ -42,12 +42,15 @@ Layer 3 → Analytics & Decision Support (Dashboards, reports)
   - Transaction safety with rollback
   - Logging of skipped and duplicate records
   - Normalized timestamp for consistent data insertion
+  - Automated ingestion every 5 minutes via cron job
+  
+
 
 ---
 
 ## Next Steps
 
-- Implement periodic ingestion (scheduling via cron)  
+
 - Integrate Twitter data into the pipeline  
 - Begin building analytics and decision support dashboards  
 - Integrate internal KoinStrap business data  
