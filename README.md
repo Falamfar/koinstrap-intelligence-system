@@ -42,7 +42,7 @@ Layer 3 → Analytics & Decision Support (Dashboards, reports)
   - Transaction safety with rollback
   - Logging of skipped and duplicate records
   - Normalized timestamp for consistent data insertion
-  - Automated ingestion every 5 minutes via cron job
+- ✅Automated ingestion every 5 minutes via cron job
   
 
 
