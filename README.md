@@ -53,7 +53,7 @@ Layer 3 → Analytics & Decision Support (Dashboards, reports)
 
 
 
-- Begin building analytics and decision support dashboards  
+- Continue building analytics and decision support dashboards  
 - Integrate Twitter data into the pipeline  
 - Integrate internal KoinStrap business data  
 
