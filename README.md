@@ -43,6 +43,7 @@ Layer 3 → Analytics & Decision Support (Dashboards, reports)
   - Logging of skipped and duplicate records
   - Normalized timestamp for consistent data insertion
 - ✅Automated ingestion every 5 minutes via cron job
+- ✅Successfully computed metrics from raw_crypto_market_data and stored in crypto_metrics.
   
 
 
@@ -51,8 +52,9 @@ Layer 3 → Analytics & Decision Support (Dashboards, reports)
 ## Next Steps
 
 
-- Integrate Twitter data into the pipeline  
+
 - Begin building analytics and decision support dashboards  
+- Integrate Twitter data into the pipeline  
 - Integrate internal KoinStrap business data  
 
 ---
