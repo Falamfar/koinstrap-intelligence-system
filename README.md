@@ -66,7 +66,7 @@ Layer 3 → Analytics & Decision Support (Dashboards, reports)
   - Updated README to reflect SQL integration  
   - Added environment variables for API key and DB credentials  
 
-- **v1.2 – 2026-01-19**  
+- **v1.1 – 2026-01-19**  
   - Implemented idempotency to prevent duplicate inserts  
   - Added data validation for symbol, name, price, and volume  
   - Added transaction safety with rollback on failure  
