@@ -44,6 +44,7 @@ Layer 3 → Analytics & Decision Support (Dashboards, reports)
   - Normalized timestamp for consistent data insertion
 - ✅Automated ingestion every 5 minutes via cron job
 - ✅Successfully computed metrics from raw_crypto_market_data and stored in crypto_metrics.
+- ✅Automated metrics computation every 5 minutes via cron job.
   
 
 

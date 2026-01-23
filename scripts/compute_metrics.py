@@ -18,8 +18,7 @@ from dotenv import load_dotenv
 # Load environment variables from our .env file
 # This includes DB credentials like host, user, password, and database name
 
-load_dotenv(dotenv_path="config/.env")
-
+load_dotenv("/home/falamfar/projects/koinstrap/config/.env")
 DB_HOST = os.getenv("DB_HOST")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
@@ -30,7 +29,7 @@ DB_NAME = os.getenv("DB_NAME")
 # --------------------------------------------------
 
 # File where all logs will be written
-LOG_FILE = "logs/compute_metrics.log"
+LOG_FILE =  "/home/falamfar/projects/koinstrap/logs/compute_metrics.log"
 
 logging.basicConfig(
     filename=LOG_FILE,
