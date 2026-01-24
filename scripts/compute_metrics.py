@@ -85,6 +85,7 @@ def compute_metrics():
     insert_query = """
         INSERT INTO crypto_metrics (
             metric_time,
+            symbol,
             price_usd,
             price_change_5m,
             price_change_15m,
@@ -93,7 +94,7 @@ def compute_metrics():
             min_price_1h,
             max_price_1h
         ) 
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
 
@@ -164,6 +165,7 @@ def compute_metrics():
                 insert_query,
                 (
                     metric_time,
+                    symbol,
                     price_now,
                     price_change_5m,
                     price_change_15m,

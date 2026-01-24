@@ -45,6 +45,7 @@ Layer 3 → Analytics & Decision Support (Dashboards, reports)
 - ✅Automated ingestion every 5 minutes via cron job
 - ✅Successfully computed metrics from raw_crypto_market_data and stored in crypto_metrics.
 - ✅Automated metrics computation every 5 minutes via cron job.
+- ✅Analytics script (`analyze_crypto_metrics.py`) completed and automated to run every 5 minutes via cron.
   
 
 
