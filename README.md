@@ -1,92 +1,177 @@
-# koinstrap-decision-intelligence-system
+# KoinStrap – Decision Intelligence System
 
 ## Project Overview
 
-KoinStrap Intelligence Decision System is a hybrid data and cloud engineering platform designed to support strategic decision-making for cryptocurrency operations.
+KoinStrap Decision Intelligence System is a **work-in-progress hybrid data and cloud engineering platform** designed to support strategic decision-making for cryptocurrency operations.
 
-The system is built with modular architecture, enabling scalable integration of multiple data sources, including:
+The goal of the system is not just to collect crypto prices, but to **transform raw market data into structured decision signals** that can later power dashboards, alerts, and automated intelligence workflows.
 
-- External market data (CoinGecko, Twitter)
-- Internal business data (transactions, user behavior, operational metrics)
-- Structured data pipelines for normalization and storage in SQL
-- Analytics and business intelligence dashboards for informed decision-making
-
-This layered approach ensures flexibility, traceability, and the ability to extend the system over time.
+The project is intentionally built in **layers**, allowing it to grow incrementally from local development into a production-grade cloud system.
 
 ---
 
-## System Architecture & Layers
+## System Philosophy
 
-Layer 1 → Data Acquisition (External APIs: CoinGecko, Twitter)  
+Most crypto tools stop at charts.
+
+KoinStrap is designed to answer questions like:
+- *Is the market behaving unusually right now?*
+- *Is this a short-term spike or a real trend shift?*
+- *When should the system alert a human or another service?*
+
+To support this, the system follows a **decision-intelligence pipeline**, not just data ingestion.
+
+---
+
+## High-Level Architecture
+
+Layer 1 → Data Acquisition  
+External market data (CoinGecko)  
+
 ↓  
-Layer 2 → Ingestion & Normalization (SQL tables, structured)  
+
+Layer 2 → Ingestion & Normalization  
+Validated, structured storage in SQL  
+
 ↓  
-Layer 3 → Analytics & Decision Support (Dashboards, reports)
 
-**Note:** Layers are implemented modularly to allow future integration of internal data and advanced analytics.
+Layer 3 → Metrics & Signals  
+Derived metrics for trend, momentum, and change  
 
----
+↓  
 
+Layer 4 → Analytics & Decision Support  
+Dashboards, alerts, and future automation  
 
----
-
-## Current Progress
-
-- ✅ Layer 2: Successfully ingested BTC and ETH market data from CoinGecko into MySQL table `raw_crypto_market_data`  
-- ✅ Environment variables for API key and DB credentials configured  
-- ✅ Table structure includes: `id`, `symbol`, `name`, `price_usd`, `volume_24h_usd`, `observed_at`  
-- ✅ README updated to reflect SQL integration and new ingestion script  
-- ✅ Layer 2 ingestion script **v1.2 stabilized** with:
-  - Idempotency (prevents duplicate inserts)
-  - Data validation (skips invalid records)
-  - Transaction safety with rollback
-  - Logging of skipped and duplicate records
-  - Normalized timestamp for consistent data insertion
-- ✅Automated ingestion every 5 minutes via cron job
-- ✅Successfully computed metrics from raw_crypto_market_data and stored in crypto_metrics.
-- ✅Automated metrics computation every 5 minutes via cron job.
-- ✅Analytics script (`analyze_crypto_metrics.py`) completed and automated to run every 5 minutes via cron.
-  
-
+Each layer is modular and independently extensible.
 
 ---
 
-## Next Steps
+## Current Implementation Status
 
-
-
-- Continue building analytics and decision support dashboards  
-- Integrate Twitter data into the pipeline  
-- Integrate internal KoinStrap business data  
+### ✅ Layer 1: Data Acquisition
+- CoinGecko API integrated
+- BTC and ETH market data pulled at fixed intervals
 
 ---
 
-## Changelog / Versioning
+### ✅ Layer 2: Ingestion & Normalization
+- Raw market data stored in MySQL table: `raw_crypto_market_data`
+- Table fields include:
+  - `id`
+  - `symbol`
+  - `name`
+  - `price_usd`
+  - `volume_24h_usd`
+  - `observed_at`
 
-- **v1.0 – 2025-12-22**  
-  - Added `ingest_coingecko_v1.py` to fetch BTC & ETH market data  
-  - Switched storage from raw JSON files to MySQL table `raw_crypto_market_data`  
-  - Updated project structure to include `sql/` folder and new table creation script  
-  - Updated README to reflect SQL integration  
-  - Added environment variables for API key and DB credentials  
+**Ingestion pipeline features:**
+- Idempotency (prevents duplicate inserts)
+- Data validation (skips invalid records)
+- Transaction safety with rollback
+- Normalized timestamps
+- Structured logging
 
-- **v1.1 – 2026-01-19**  
-  - Implemented idempotency to prevent duplicate inserts  
-  - Added data validation for symbol, name, price, and volume  
-  - Added transaction safety with rollback on failure  
-  - Added logging for skipped/duplicate records  
-  - Normalized timestamps to ensure consistent inserts  
+📌 Ingestion runs automatically every 5 minutes via cron.
 
 ---
 
-## Notes for Recruiters
+### ✅ Layer 3: Metrics & Signals
+
+Raw prices alone are not decision-ready.
+
+A dedicated metrics layer transforms raw market data into **interpretable decision signals**, stored in a separate table: `crypto_metrics`.
+
+**Computed metrics include:**
+- Price change over 5 minutes
+- Price change over 15 minutes
+- 1-hour rolling aggregates (avg, min, max)
+- Robust handling of sparse or missing data
+
+This logic is implemented in:
+- `compute_metrics.py`
+
+📌 Metrics computation runs automatically every 5 minutes via cron.
+
+---
+
+### ✅ Layer 4: Analytics & Decision Support
+
+An interactive analytics layer has been implemented to surface decision-ready insights.
+
+**Dashboard capabilities include:**
+- Real-time BTC and ETH price metrics
+- Clear visual separation between:
+  - Raw values
+  - Derived signals
+- Short-term trend reversal indicators
+- Hard-coded alert signals for:
+  - Price spikes
+  - Trend reversals
+  - Unusual volume behavior
+- Interactive line charts using Plotly
+- Streamlit-based UI focused on clarity and signal visibility
+
+This layer is designed for **human decision support first**, with automation planned later.
+
+---
+
+## What This Project Demonstrates
+
+- End-to-end data pipeline design
+- Separation of ingestion, metrics, and analytics layers
+- Decision-focused analytics (not just visualization)
+- SQL-backed metric computation
+- Robust handling of sparse real-world data
+- Automation with cron
+- Clean, modular Python architecture
+- Production-aware design without premature cloud complexity
+
+---
+
+## Project Status
+
+🚧 **Actively evolving**
+
+The system is currently running locally with:
+- Automated ingestion
+- Automated metrics computation
+- Live analytics dashboard
+
+Cloud deployment and alert delivery are intentionally deferred to preserve architectural clarity.
+
+---
+
+## Next Planned Steps
+
+**Near-term**
+- Twitter sentiment ingestion
+- Internal KoinStrap business data integration
+- Signal scoring and prioritization
+- Cloud deployment (AWS / GCP)
+- Containerization (Docker)
+- Secure secrets management
+- External alert delivery (email / webhook)
+
+**Mid-term**
+- Cloud deployment (AWS / GCP)
+- Containerization (Docker)
+- Secure secrets management
+- External alert delivery (email / webhook)
+
+**Long-term**
+- Automated decision triggers
+- Advanced analytics and ML-based signals
+- Fully productionized decision intelligence platform
+
+---
+
+## Notes for Recruiters & Reviewers
 
 This project demonstrates:
+- How real-world data platforms evolve incrementally
+- Strong system design and architectural thinking
+- Practical data engineering skills applied to decision intelligence
+- Readiness for cloud and production environments
 
-- End-to-end system design  
-- Data engineering and cloud engineering skills  
-- Professional modular architecture and layered pipelines  
-- Versioned workflow with Git and clean documentation  
-- Production-ready use of secrets and database integration
-
-
+The repository intentionally reflects a **living system**, not a static demo.
