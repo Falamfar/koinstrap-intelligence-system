@@ -148,10 +148,7 @@ Cloud deployment and alert delivery are intentionally deferred to preserve archi
 - Twitter sentiment ingestion
 - Internal KoinStrap business data integration
 - Signal scoring and prioritization
-- Cloud deployment (AWS / GCP)
-- Containerization (Docker)
-- Secure secrets management
-- External alert delivery (email / webhook)
+
 
 **Mid-term**
 - Cloud deployment (AWS / GCP)
