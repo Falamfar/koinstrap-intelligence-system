@@ -10,6 +10,7 @@ import logging
 import mysql.connector
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
+from decimal import Decimal 
 
 # --------------------------------------------------
 # ENVIRONMENT SETUP
@@ -92,9 +93,12 @@ def compute_metrics():
             volume_24h_usd,
             avg_price_1h,
             min_price_1h,
-            max_price_1h
+            max_price_1h,
+            is_price_spike,
+            is_trend_reversal,
+            is_volume_spike
         ) 
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
 
@@ -135,24 +139,47 @@ def compute_metrics():
             # Latest price and volume = first row (DESC order = newest first)
             price_now = prices[0]
             volume_24h_usd = rows[0]['volume_24h_usd']
+
+           
             
-            # Initialize variables for past prices
+            # --------------------------------------------------
+            # FIND CLOSEST PRICES TO 5m AND 15m MARKS
+            # --------------------------------------------------
+
+
+           
             price_5m = None
             price_15m = None
+
             
-            # Loop through historical rows to find 5min and 15min old prices
+
+            
+                
             for row in rows:
-                if row['observed_at'] <= five_min_ago and price_5m is None:
-                    price_5m = row['price_usd']
-                if row['observed_at'] <= fifteen_min_ago:
-                    price_15m = row['price_usd']
-                    break  # No need to continue once we have both prices    
+                ts = row["observed_at"]
 
+                # Nearest price BEFORE or AT target time
+                if price_5m is None and ts <= five_min_ago:
+                    price_5m = row["price_usd"]
 
+                if price_15m is None and ts <= fifteen_min_ago:
+                    price_15m = row["price_usd"]
+
+                if price_5m is not None and price_15m is not None:
+                    break
+
+            # Dashboard-friendly fallback (no NULLs)
+            if price_5m is None:
+                price_5m = price_now
+
+            if price_15m is None:
+                price_15m = price_now
+
+                
 
             # Compute price changes (current - past) 
-            price_change_5m = price_now - price_5m if price_5m else None       
-            price_change_15m = price_now - price_15m if price_15m else None
+            price_change_5m = price_now - price_5m    
+            price_change_15m = price_now - price_15m 
 
             
             # Compute 1-hour aggregates
@@ -160,7 +187,22 @@ def compute_metrics():
             min_price_1h = min(prices)
             max_price_1h = max(prices)
 
-            # Insert metrics into crypto_metrics table
+            # --------------------------------------------------
+            # ALERT LOGIC (hard-coded)
+            # --------------------------------------------------
+
+            # Price Spike: moves ±0.5% in 5 minutes
+            is_price_spike = abs(price_change_5m / price_now ) >= 0.005 if price_change_5m is not None else False
+
+            # Trend Reversal: 5m move opposite 15m move
+            is_trend_reversal = (price_change_5m > 0 and price_change_15m < 0) or  (price_change_5m < 0 and price_change_15m > 0)
+
+            # Volume Spike: current volume > 1.5x avg last hour
+            avg_volume_1h = sum([r['volume_24h_usd']for r in rows]) / len(rows) 
+            is_volume_spike = volume_24h_usd > avg_volume_1h * Decimal ("1.5")  
+           
+
+            # Insert metrics + alerts into crypto_metrics table
             cursor.execute(
                 insert_query,
                 (
@@ -172,7 +214,10 @@ def compute_metrics():
                     volume_24h_usd,
                     avg_price_1h,
                     min_price_1h,
-                    max_price_1h
+                    max_price_1h,
+                    is_price_spike,
+                    is_trend_reversal,
+                    is_volume_spike
                 )
             )
 
