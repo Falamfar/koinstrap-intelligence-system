@@ -1,7 +1,7 @@
 """
 compute_metrics.py
 
-Computes decision metrics from raw_crypto_market_data
+Computes  factual crypto metrics from raw_crypto_market_data
 and stores them in crypto_metrics.
 """
 
@@ -63,7 +63,7 @@ def compute_metrics():
     Main function to compute crypto metrics:
     - Reads raw_crypto_market_data from MySQL
     - Computes price changes and aggregates
-    - Writes results into crypto_metrics table
+    - Writes results into crypto_metrics table in MySQL
     """
     # Connect to database
     conn = get_db_connection()
@@ -93,12 +93,9 @@ def compute_metrics():
             volume_24h_usd,
             avg_price_1h,
             min_price_1h,
-            max_price_1h,
-            is_price_spike,
-            is_trend_reversal,
-            is_volume_spike
+            max_price_1h
         ) 
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
 
@@ -187,22 +184,10 @@ def compute_metrics():
             min_price_1h = min(prices)
             max_price_1h = max(prices)
 
-            # --------------------------------------------------
-            # ALERT LOGIC (hard-coded)
-            # --------------------------------------------------
-
-            # Price Spike: moves ±0.5% in 5 minutes
-            is_price_spike = abs(price_change_5m / price_now ) >= 0.005 if price_change_5m is not None else False
-
-            # Trend Reversal: 5m move opposite 15m move
-            is_trend_reversal = (price_change_5m > 0 and price_change_15m < 0) or  (price_change_5m < 0 and price_change_15m > 0)
-
-            # Volume Spike: current volume > 1.5x avg last hour
-            avg_volume_1h = sum([r['volume_24h_usd']for r in rows]) / len(rows) 
-            is_volume_spike = volume_24h_usd > avg_volume_1h * Decimal ("1.5")  
+           
            
 
-            # Insert metrics + alerts into crypto_metrics table
+            # Insert metrics into crypto_metrics table
             cursor.execute(
                 insert_query,
                 (
@@ -214,10 +199,7 @@ def compute_metrics():
                     volume_24h_usd,
                     avg_price_1h,
                     min_price_1h,
-                    max_price_1h,
-                    is_price_spike,
-                    is_trend_reversal,
-                    is_volume_spike
+                    max_price_1h
                 )
             )
 

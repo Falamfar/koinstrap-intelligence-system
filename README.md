@@ -4,9 +4,9 @@
 
 KoinStrap Decision Intelligence System is a **work-in-progress hybrid data and cloud engineering platform** designed to support strategic decision-making for cryptocurrency operations.
 
-The goal of the system is not just to collect crypto prices, but to **transform raw market data into structured decision signals** that can later power dashboards, alerts, and automated intelligence workflows.
+The goal of the system is not just to collect crypto prices, but to **transform raw market and social data into structured decision signals** that can later power dashboards, alerts, and automated intelligence workflows.
 
-The project is intentionally built in **layers**, allowing it to grow incrementally from local development into a production-grade cloud system.
+The project is intentionally built in **layers**, allowing it to evolve incrementally from local development into a production-grade cloud system.
 
 ---
 
@@ -15,9 +15,11 @@ The project is intentionally built in **layers**, allowing it to grow incrementa
 Most crypto tools stop at charts.
 
 KoinStrap is designed to answer questions like:
-- *Is the market behaving unusually right now?*
-- *Is this a short-term spike or a real trend shift?*
-- *When should the system alert a human or another service?*
+
+- Is the market behaving unusually right now?
+- Is this a short-term spike or a real trend shift?
+- Is social sentiment aligned with price movement?
+- When should the system alert a human or another service?
 
 To support this, the system follows a **decision-intelligence pipeline**, not just data ingestion.
 
@@ -25,150 +27,179 @@ To support this, the system follows a **decision-intelligence pipeline**, not ju
 
 ## High-Level Architecture
 
-Layer 1 → Data Acquisition  
-External market data (CoinGecko)  
-
-↓  
-
-Layer 2 → Ingestion & Normalization  
-Validated, structured storage in SQL  
-
-↓  
-
-Layer 3 → Metrics & Signals  
-Derived metrics for trend, momentum, and change  
-
-↓  
-
-Layer 4 → Analytics & Decision Support  
-Dashboards, alerts, and future automation  
+Layer 1 → Market Data Acquisition (CoinGecko)  
+Layer 2 → Social Data Acquisition (Reddit Public JSON Endpoints)  
+Layer 3 → Ingestion & Normalization (MySQL)  
+Layer 4 → Metrics & Signal Computation  
+Layer 5 → Analytics & Decision Support Dashboard  
 
 Each layer is modular and independently extensible.
 
 ---
 
-## Current Implementation Status
+# Current Implementation Status
 
-### ✅ Layer 1: Data Acquisition
-- CoinGecko API integrated
+## ✅ Accomplishments
+
+### Layer 1 – Market Data Acquisition
+- CoinGecko API fully integrated
 - BTC and ETH market data pulled at fixed intervals
+- Robust request handling with retries and logging
 
 ---
 
-### ✅ Layer 2: Ingestion & Normalization
-- Raw market data stored in MySQL table: `raw_crypto_market_data`
-- Table fields include:
-  - `id`
-  - `symbol`
-  - `name`
-  - `price_usd`
-  - `volume_24h_usd`
-  - `observed_at`
+### Layer 2 – Social Data Acquisition (Reddit)
+- Reddit public JSON endpoints integrated (no API keys required)
+- Keyword-based search for BTC and ETH
+- Basic NLP sentiment analysis using VADER
+- Retry logic for network reliability
+- Structured logging for observability
 
-**Ingestion pipeline features:**
-- Idempotency (prevents duplicate inserts)
-- Data validation (skips invalid records)
+---
+
+### Layer 3 – Ingestion & Normalization
+
+#### Market Data Table
+`raw_crypto_market_data`
+- id
+- symbol
+- name
+- price_usd
+- volume_24h_usd
+- observed_at
+
+#### Social Sentiment Table
+`social_sentiment_metrics`
+- id
+- symbol
+- window_start
+- window_end
+- post_count
+- avg_sentiment
+- positive_ratio
+- negative_ratio
+- neutral_ratio
+- change_in_count
+- change_in_count_pct
+- change_in_sentiment
+- change_in_sentiment_pct
+- source
+- created_at
+
+Ingestion pipeline features:
+- Idempotent inserts
+- Duplicate protection
 - Transaction safety with rollback
 - Normalized timestamps
 - Structured logging
+- Retry handling for external requests
 
-📌 Ingestion runs automatically every 5 minutes via cron.
+📌 CoinGecko ingestion runs every 5 minutes via cron  
+📌 Reddit ingestion runs on a controlled interval (longer window aggregation)
 
 ---
 
-### ✅ Layer 3: Metrics & Signals
+### Layer 4 – Metrics & Signals
 
-Raw prices alone are not decision-ready.
+Raw values are transformed into decision-ready signals.
 
-A dedicated metrics layer transforms raw market data into **interpretable decision signals**, stored in a separate table: `crypto_metrics`.
-
-**Computed metrics include:**
-- Price change over 5 minutes
-- Price change over 15 minutes
+#### Market Metrics
+- 5-minute price change
+- 15-minute price change
 - 1-hour rolling aggregates (avg, min, max)
-- Robust handling of sparse or missing data
+- Sparse data handling
 
-This logic is implemented in:
-- `compute_metrics.py`
+#### Social Metrics
+- Post count per time window
+- Average sentiment score
+- Positive / negative / neutral ratios
+- Change in post volume between windows
+- Change in sentiment between windows
 
-📌 Metrics computation runs automatically every 5 minutes via cron.
+This enables:
+- Sentiment momentum tracking
+- Social spike detection
+- Cross-layer comparison (price vs sentiment)
 
 ---
 
-### ✅ Layer 4: Analytics & Decision Support
+### Layer 5 – Analytics & Decision Support
 
-An interactive analytics layer has been implemented to surface decision-ready insights.
+Interactive Streamlit dashboard implemented.
 
-**Dashboard capabilities include:**
+Features:
 - Real-time BTC and ETH price metrics
-- Clear visual separation between:
-  - Raw values
+- Social sentiment metrics display
+- Clear separation of:
+  - Raw data
   - Derived signals
-- Short-term trend reversal indicators
+- Short-term trend indicators
 - Hard-coded alert signals for:
   - Price spikes
   - Trend reversals
-  - Unusual volume behavior
-- Interactive line charts using Plotly
-- Streamlit-based UI focused on clarity and signal visibility
+  - Social activity surges
+- Interactive Plotly visualizations
 
-This layer is designed for **human decision support first**, with automation planned later.
+The dashboard is built for **human decision support first**, with structured backend logic for future extensibility.
 
 ---
 
-## What This Project Demonstrates
+# What This Project Demonstrates
 
 - End-to-end data pipeline design
+- Multi-source ingestion (market + social)
 - Separation of ingestion, metrics, and analytics layers
-- Decision-focused analytics (not just visualization)
 - SQL-backed metric computation
-- Robust handling of sparse real-world data
+- Social sentiment integration into financial intelligence
+- Retry-safe ingestion scripts
+- Logging and observability awareness
 - Automation with cron
 - Clean, modular Python architecture
-- Production-aware design without premature cloud complexity
+- Production-aware thinking without premature cloud complexity
 
 ---
 
-## Project Status
+# Project Status
 
-🚧 **Actively evolving**
+🚧 Actively evolving
 
-The system is currently running locally with:
-- Automated ingestion
-- Automated metrics computation
+The system currently runs locally with:
+
+- Automated CoinGecko ingestion
+- Automated Reddit ingestion
+- Automated metric computation
 - Live analytics dashboard
+- Structured social sentiment storage
 
-Cloud deployment and alert delivery are intentionally deferred to preserve architectural clarity.
+The architecture is cloud-ready but intentionally deployed locally during development to maintain clarity and control.
 
 ---
 
-## Next Planned Steps
+# Next Steps
 
-**Near-term**
-- Twitter sentiment ingestion
-- Internal KoinStrap business data integration
-- Signal scoring and prioritization
+### Near-Term
+- Sentiment-to-price divergence detection logic
+- Signal scoring and prioritization layer
+- Internal KoinStrap business metrics integration
+- Improved anomaly detection thresholds
 
-
-**Mid-term**
-- Cloud deployment (AWS / GCP)
-- Containerization (Docker)
+### Mid-Term
+- Cloud deployment (AWS or GCP)
+- Docker containerization
 - Secure secrets management
 - External alert delivery (email / webhook)
 
-**Long-term**
-- Automated decision triggers
-- Advanced analytics and ML-based signals
-- Fully productionized decision intelligence platform
-
 ---
 
-## Notes for Recruiters & Reviewers
+# Notes for Recruiters & Reviewers
 
 This project demonstrates:
+
 - How real-world data platforms evolve incrementally
-- Strong system design and architectural thinking
+- Strong architectural thinking across multiple data sources
 - Practical data engineering skills applied to decision intelligence
-- Readiness for cloud and production environments
+- Integration of financial and social sentiment signals
+- Production-minded design decisions
+- Structured automation and observability
 
 The repository intentionally reflects a **living system**, not a static demo.

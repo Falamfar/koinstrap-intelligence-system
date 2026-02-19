@@ -1,22 +1,29 @@
 """
 analyze_crypto_metrics.py
 
-This script reads the metrics from crypto_metrics table
-and computes actionable insights like short-term price changes,
-volatility, and signals.
+Purpose:
+- Reads the clean metrics from crypto_metrics table
+- Computes actionable insights / alerts like price spikes, trend reversals, volume spikes
+- Stores these insights in a separate table crypto_analysis
+- This allows the dashboard to read **decision-ready data** instead of raw metrics
 """
 
-import os
-import logging
-import mysql.connector
-from datetime import datetime, timezone
-from dotenv import load_dotenv 
+# --------------------------------------------------
+# 1️⃣ Import Libraries
+# --------------------------------------------------
+import os                    # To read environment variables (like DB credentials)
+import logging               # To log info, warnings, and errors
+import mysql.connector       # To connect and query MySQL database
+from datetime import datetime, timezone  # For timestamps and timezone handling
+from dotenv import load_dotenv           # To read .env file safely
+from decimal import Decimal              # For precise decimal calculations (money)
 
 # --------------------------------------------------
-# ENVIRONMENT SETUP
+# 2️⃣ Load Environment Variables
 # --------------------------------------------------
-
 load_dotenv("/home/falamfar/projects/koinstrap/config/.env")
+# .env file contains DB_HOST, DB_USER, DB_PASSWORD, DB_NAME
+# Keeps sensitive info out of your code
 
 DB_HOST = os.getenv("DB_HOST")
 DB_USER = os.getenv("DB_USER")
@@ -24,20 +31,26 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_NAME = os.getenv("DB_NAME")
 
 # --------------------------------------------------
-# LOGGING SETUP
+# 3️⃣ Logging Setup
 # --------------------------------------------------
-
-LOG_FILE =  "/home/falamfar/projects/koinstrap/logs/analyze_metrics.log"
+LOG_FILE = "/home/falamfar/projects/koinstrap/logs/analyze_metrics.log"
 
 logging.basicConfig(
     filename=LOG_FILE,
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)s  %(message)s",
+    level=logging.INFO,                 # Log INFO, WARNING, ERROR
+    format="%(asctime)s %(levelname)s:%(message)s"
 )
 
-logging.info("starting crypto metrics analysis")
+logging.info("Starting analyze_crypto_metrics...")  # Let us know script started
 
+# --------------------------------------------------
+# 4️⃣ Database Connection Function
+# --------------------------------------------------
 def get_db_connection():
+    """
+    Returns a connection object to MySQL.
+    We use this function every time we need to talk to the DB.
+    """
     return mysql.connector.connect(
         host=DB_HOST,
         user=DB_USER,
@@ -46,82 +59,136 @@ def get_db_connection():
     )
 
 # --------------------------------------------------
-# ANALYTICS FUNCTION
-# --------------------------------------------------    
-
+# 5️⃣ Main Analysis Function
+# --------------------------------------------------
 def analyze_metrics():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    """
+    This is the main function that computes actionable insights.
+    Steps:
+    1. Connect to DB
+    2. For each coin:
+       a. Get latest metric
+       b. Compute price spike, trend reversal, volume spike
+       c. Compute simple trend signal and confidence score
+    3. Insert insights into crypto_analysis table
+    """
 
-    now = datetime.now(timezone.utc)
+    conn = get_db_connection()   # Step 1: Connect to DB
+    cursor = conn.cursor(dictionary=True)  # We want results as dictionary, not tuple
 
-    symbols = ["btc", "eth"] 
+    # Step 2a: Timestamp for analysis
+    analysis_time = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    # This is **when** we performed the analysis. Useful to track history.
+
+    symbols = ["btc", "eth"]  # List of coins to analyze
+
+    # --------------------------------------------------
+    # 2b: SQL Insert Template
+    # --------------------------------------------------
+    insert_query = """
+        INSERT INTO crypto_analysis (
+            analysis_time,
+            symbol,
+            metric_time_ref,
+            is_price_spike,
+            is_trend_reversal,
+            is_volume_spike,
+            trend_signal,
+            confidence_score,
+            notes
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        ON DUPLICATE KEY UPDATE
+            is_price_spike=VALUES(is_price_spike),
+            is_trend_reversal=VALUES(is_trend_reversal),
+            is_volume_spike=VALUES(is_volume_spike),
+            trend_signal=VALUES(trend_signal),
+            confidence_score=VALUES(confidence_score),
+            notes=VALUES(notes)
+    """
+    """
+    Baby Explanation:
+    - %s are placeholders for Python variables
+    - ON DUPLICATE KEY UPDATE ensures we don't insert duplicates for same coin/time
+    """
 
     try:
+        # Step 3: Loop through all coins
         for symbol in symbols:
-            #  Read latest metrics from SQL
-            cursor.execute(
-                """
+
+            # Step 3a: Fetch the latest metric row for this coin
+            cursor.execute("""
                 SELECT *
                 FROM crypto_metrics
                 WHERE symbol = %s
                 ORDER BY metric_time DESC
-                LIMIT 10
-                """,
-                (symbol,)
-            )
+                LIMIT 1
+            """, (symbol,))
 
-            rows = cursor.fetchall()
-
-            if not rows:
+            row = cursor.fetchone()  # Get the first/latest row
+            if not row:
                 logging.warning(f"No metrics found for {symbol}")
-                continue
+                continue  # Skip this coin if no data
 
-            #  Extract values into Python lists for calculation    
+            # Step 3b: Compute Signals / Insights
 
-            prices = [row['price_usd'] for row in rows]
-            volumes = [row['volume_24h_usd'] for row in rows]
-            metric_times = [row['metric_time'] for row in rows] 
+            # 1️⃣ Price Spike: absolute 5-min price change >= 0.5% of current price
+            is_price_spike = abs(row['price_change_5m'] / row['price_usd']) >= Decimal('0.005')
 
-            price_now = prices[0]
-            volume_now = volumes[0]
+            # 2️⃣ Trend Reversal: 5m move opposite to 15m move
+            is_trend_reversal = (row['price_change_5m'] > 0 and row['price_change_15m'] < 0) \
+                                or (row['price_change_5m'] < 0 and row['price_change_15m'] > 0)
 
-            #  Compute simple short-term trend
-            # Difference between latest price and oldest in this batch
+            # 3️⃣ Volume Spike: current volume > 1.5x avg volume
+            # For now, using volume_24h_usd as reference if avg_volume not in metrics
+            avg_volume_1h = row['volume_24h_usd']
+            is_volume_spike = row['volume_24h_usd'] > Decimal(avg_volume_1h) * Decimal('1.5')
 
-            price_change = price_now - prices[-1] if len(prices) > 1 else 0
+            # 4️⃣ Trend Signal: simple heuristic
+            if row['price_change_5m'] > 0:
+                trend_signal = "Bullish"
+            elif row['price_change_5m'] < 0:
+                trend_signal = "Bearish"
+            else:
+                trend_signal = "Neutral"
 
-            # Compute volatility (simple example: max-min over last 10 points)
-            price_volatility = max(prices) - min(prices) 
+            # 5️⃣ Confidence Score: absolute 5-min % change
+            confidence_score = float(abs(row['price_change_5m'] / row['price_usd']) * 100)
 
-            # Compute percentage change for alerting
-            price_pct_change = (price_change / prices[-1]) * 100 if prices[-1]  else 0 
+            # Notes: optional short info for humans or dashboard
+            notes = "Derived from last metrics"
 
-            # log insights
+            # Step 3c: Insert insights into crypto_analysis table
+            cursor.execute(insert_query, (
+                analysis_time,
+                symbol,
+                row['metric_time'],  # Reference metric timestamp
+                is_price_spike,
+                is_trend_reversal,
+                is_volume_spike,
+                trend_signal,
+                confidence_score,
+                notes
+            ))
 
-            logging.info(
-                f"{symbol.upper()} | Current price: ${price_now: .2f} |"
-                f"price change: ${price_change: .2f} |"
-                f"percentage change : ${price_pct_change: .2f} | "
-                f"votality (last 10 points) : ${price_volatility: .2f} |"
-                f"volume : ${volume_now : .2f}"
+            logging.info(f"Analysis stored for {symbol} at {analysis_time}")
 
-            )
-
-
+        # Step 4: Commit all inserts
+        conn.commit()
 
     except Exception as e:
-        logging.exception(f" metrics analysis failed: {e}")
+        conn.rollback()  # If error, undo all changes
+        logging.exception(f"Error in analyze_metrics: {e}")
 
     finally:
         cursor.close()
-        conn.close()
-
-
+        conn.close()  # Always close DB connection to avoid leaks
 
 # --------------------------------------------------
-# ENTRY POINT
+# 6️⃣ Entry Point
 # --------------------------------------------------
-
 if __name__ == "__main__":
     analyze_metrics()
+
+
+
+    
