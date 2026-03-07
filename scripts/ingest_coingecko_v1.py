@@ -1,72 +1,71 @@
 """
-ingest_coingecko_v1.py - v1.2
-Enhancements:
-- Idempotency (no duplicate inserts)
-- Data validation
-- Transaction safety
-- Logging of skipped records
+ingest_coingecko_dag.py
+-----------------------
+DAG-friendly, production-ready ingestion module for CoinGecko market data.
+
+Features:
+- Encapsulated function for Airflow `python_callable`
+- Parameterized symbols & vs_currency
+- Idempotent insertion into raw_crypto_market_data
+- Full logging and error handling
+- Returns number of records processed (for monitoring)
 """
 
 import os
-import logging 
+import logging
 import requests
 import mysql.connector
+from mysql.connector import Error
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+from typing import List, Dict
 
-#load environment variables from .env file
+# ---------------------------------------------------------
+# 1️⃣ ENVIRONMENT CONFIGURATION
+# ---------------------------------------------------------
+load_dotenv("/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env")
 
-load_dotenv(dotenv_path="config/.env")
 COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY")
-
 DB_HOST = os.getenv("DB_HOST")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_NAME = os.getenv("DB_NAME")
 
-#logging configuration
+# ---------------------------------------------------------
+# 2️⃣ LOGGER CONFIGURATION
+# ---------------------------------------------------------
+logger = logging.getLogger("coingecko_ingestion")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    file_handler = logging.FileHandler("/home/falamfar/koinstrap_platform/projects/koinstrap/logs/ingest_coingecko_v1.log")
+    formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
-LOG_FILE = "logs/ingest_coingecko_v1.log"
-
-
-logging.basicConfig(
-    filename=LOG_FILE,
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s:%(message)s"
-)
-
-logging.info("Starting CoinGecko ingestion script...")
-
-print("Everything is set up. Starting ingestion...")
-
-#coingecko configuration
-
-COINS = ["bitcoin", "ethereum"] 
-VS_CURRENCY = "usd" 
-COINGECKO_URL = "https://api.coingecko.com/api/v3/coins/markets" 
-
-HEADERS = {
-    "Accept": "application/json",
-    "x-cg-demo-api-key": COINGECKO_API_KEY
-}
-
-PARAMS = {
-    "vs_currency": VS_CURRENCY,
-    "ids": ",".join(COINS)
-}
-
-#database connection
+# ---------------------------------------------------------
+# 3️⃣ DATABASE CONNECTION
+# ---------------------------------------------------------
 def get_db_connection():
-    return mysql.connector.connect(
-        host=DB_HOST,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        database=DB_NAME
-    )
+    """Establish and return a MySQL connection."""
+    try:
+        conn = mysql.connector.connect(
+            host=DB_HOST,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME
+        )
+        logger.info("Database connection established.")
+        return conn
+    except Error as e:
+        logger.error("Database connection failed.", exc_info=True)
+        raise
 
-#validate coin data
-def is_valid_record(coin):
-    if not coin.get("symbol") or not coin.get("name"):    
+# ---------------------------------------------------------
+# 4️⃣ VALIDATION
+# ---------------------------------------------------------
+def is_valid_record(coin: Dict) -> bool:
+    """Ensure required fields exist and numeric values are valid."""
+    if not coin.get("symbol") or not coin.get("name"):
         return False
     if coin.get("current_price") is None or coin.get("current_price") < 0:
         return False
@@ -74,92 +73,95 @@ def is_valid_record(coin):
         return False
     return True
 
-#check for existing record    
-def record_exists(cursor, symbol, observed_at):
-    query = """
-        SELECT COUNT(*) FROM raw_crypto_market_data
-        WHERE symbol = %s AND observed_at = %s
+# ---------------------------------------------------------
+# 5️⃣ API FETCH WITH RETRIES
+# ---------------------------------------------------------
+def fetch_market_data(symbols: List[str], vs_currency: str = "usd", max_retries: int = 3) -> List[Dict]:
+    """Fetch market data from CoinGecko with retry logic."""
+    url = "https://api.coingecko.com/api/v3/coins/markets"
+    headers = {
+        "Accept": "application/json",
+        "x-cg-demo-api-key": COINGECKO_API_KEY
+    }
+    params = {"vs_currency": vs_currency, "ids": ",".join(symbols)}
+
+    attempt = 0
+    while attempt < max_retries:
+        try:
+            logger.info(f"Fetching market data (attempt {attempt + 1}) for {symbols}")
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            if response.status_code == 200:
+                return response.json()
+            logger.warning(f"API returned status code {response.status_code}")
+        except Exception as e:
+            logger.error("API request failed.", exc_info=True)
+        attempt += 1
+
+    raise Exception("Max retries reached. CoinGecko fetch failed.")
+
+# ---------------------------------------------------------
+# 6️⃣ INGESTION FUNCTION (DAG-FRIENDLY)
+# ---------------------------------------------------------
+def run_ingest(symbols: List[str] = None, vs_currency: str = "usd") -> int:
     """
-    cursor.execute(query, (symbol, observed_at))
-    count = cursor.fetchone()[0]
-    return count > 0
+    Fetch market data and insert into raw_crypto_market_data.
 
-#ingestion logic
-def ingest_market_data():
-    logging.info("fetching market data from CoinGecko...")
+    Returns:
+        inserted (int): number of records processed
+    """
+    symbols = symbols or ["bitcoin", "ethereum"]
+    inserted = 0
 
-    response = requests.get(
-        COINGECKO_URL,
-        headers=HEADERS,
-        params=PARAMS,
-        timeout=10
-    )
-
-    if response.status_code != 200:
-        logging.error(f"CoinGecko API error: {response.status_code}")
-        raise Exception(f"CoinGecko API error: {response.status_code}")
-
-    data = response.json()
+    data = fetch_market_data(symbols, vs_currency)
     if not data:
-        logging.warning("No data received from CoinGecko API")
-        return
+        logger.warning("No data returned from CoinGecko.")
+        return inserted
 
-
-    conn = get_db_connection()        
+    conn = get_db_connection()
     cursor = conn.cursor()
-
-    insert_query = """
-        INSERT INTO raw_crypto_market_data 
-        (symbol, name, price_usd, volume_24h_usd, observed_at)
-        VALUES (%s, %s, %s, %s, %s)
-    """
-# Normalize timestamp for idempotency (start of the current minute)
     observed_at = datetime.now(timezone.utc).replace(second=0, microsecond=0)
 
+    insert_query = """
+        INSERT INTO raw_crypto_market_data
+        (symbol, name, price_usd, volume_24h_usd, observed_at)
+        VALUES (%s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+        price_usd = VALUES(price_usd),
+        volume_24h_usd = VALUES(volume_24h_usd)
+    """
 
-
-    records_inserted = 0
     try:
-        
         for coin in data:
-            #validate record
             if not is_valid_record(coin):
-                logging.warning(f"Invalid record skipped: {coin}")
-                continue
-
-            #check for existing record
-            if record_exists(cursor, coin.get("symbol"), observed_at):
-                logging.info(f"Duplicate record skipped for {coin.get('symbol')} at {observed_at}")
+                logger.warning(f"Invalid record skipped: {coin}")
                 continue
             record = (
-            coin.get("symbol"),
-            coin.get("name"),
-            coin.get("current_price"),
-            coin.get("total_volume"),
-            observed_at
+                coin["symbol"],
+                coin["name"],
+                coin["current_price"],
+                coin["total_volume"],
+                observed_at
             )
-
             cursor.execute(insert_query, record)
-            records_inserted += 1
+            inserted += 1
 
         conn.commit()
-        logging.info(f"successfully ingested {len(data)} records at {observed_at}")
+        logger.info(f"Ingestion successful. {inserted} records processed.")
+
     except Exception as e:
         conn.rollback()
-        logging.exception(f"ingestion failed and rolledback : {e}")
-
-    finally:    
+        logger.error("Ingestion failed. Transaction rolled back.", exc_info=True)
+        raise
+    finally:
         cursor.close()
         conn.close()
+        logger.info("Database connection closed.")
 
-#Entry point    
+    return inserted
+
+# ---------------------------------------------------------
+# 7️⃣ ENTRY POINT FOR MANUAL RUN
+# ---------------------------------------------------------
 if __name__ == "__main__":
-    try:
-        ingest_market_data()
-        logging.info("ingestion completed successfully.")
-    except Exception as e:
-        logging.exception(f"ingestion failed: {e}")
-
-
-
-        
+    inserted_count = run_ingest()
+    logger.info(f"Manual run complete. {inserted_count} records ingested.")
