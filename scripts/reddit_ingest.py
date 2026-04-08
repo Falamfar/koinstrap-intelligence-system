@@ -14,8 +14,9 @@ Purpose:
 import os
 import logging
 import requests
-import mysql.connector
-from mysql.connector import Error
+import psycopg2
+from psycopg2 import Error 
+from psycopg2.extras import RealDictCursor
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
@@ -24,10 +25,11 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 # Load environment variables
 # -----------------------------
 load_dotenv("/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env")
-DB_HOST = os.getenv("DB_HOST")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_NAME = os.getenv("DB_NAME")
+DB_HOST = os.getenv("PG_HOST")
+DB_USER = os.getenv("PG_USER")
+DB_PASSWORD = os.getenv("PG_PASSWORD")
+DB_NAME = os.getenv("PG_NAME")
+DB_PORT = os.getenv("PG_PORT", 5432) 
 
 # -----------------------------
 # Logging configuration
@@ -46,11 +48,12 @@ logger.info("🚀 Starting Reddit ingestion script (DAG-ready)")
 # -----------------------------
 def get_db_connection():
     try:
-        conn = mysql.connector.connect(
+        conn = psycopg2.connect(
             host=DB_HOST,
             user=DB_USER,
             password=DB_PASSWORD,
-            database=DB_NAME
+            database=DB_NAME,
+            port=DB_PORT
         )
         return conn
     except Error as e:
@@ -73,7 +76,7 @@ def clamp(value, min_value=-1e9, max_value=1e9):
 # -----------------------------
 def process_symbol(symbol, window_minutes=15, reddit_limit=50):
     logger.info(f"Processing {symbol.upper()}...")
-    window_end = datetime.now(timezone.utc)
+    window_end = datetime.now(timezone.utc).replace(second=0, microsecond=0) 
     window_start = window_end - timedelta(minutes=window_minutes)
 
     url = f"https://www.reddit.com/search.json?q={symbol}&sort=new&limit={reddit_limit}"
@@ -118,18 +121,8 @@ def process_symbol(symbol, window_minutes=15, reddit_limit=50):
     conn = cursor = None
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor) 
 
-        # Idempotency check
-        cursor.execute("""
-            SELECT 1 FROM social_sentiment_metrics
-            WHERE symbol=%s AND window_start=%s
-            LIMIT 1
-        """, (symbol, window_start))
-
-        if cursor.fetchone():
-            logger.info(f"{symbol.upper()} already ingested for window starting {window_start}, skipping")
-            return 0
 
         # Previous window for delta
         cursor.execute("""
@@ -142,12 +135,15 @@ def process_symbol(symbol, window_minutes=15, reddit_limit=50):
         previous = cursor.fetchone()
 
         if previous:
-            change_in_count = post_count - previous["post_count"]
-            change_in_count_pct = (change_in_count / previous["post_count"] * 100 if previous["post_count"] else 0)
-            change_in_sentiment = avg_sentiment - previous["avg_sentiment"]
-            change_in_sentiment_pct = (change_in_sentiment / abs(previous["avg_sentiment"]) if previous["avg_sentiment"] else 0)
+            prev_count = float(previous["post_count"])
+            prev_sent = float(previous["avg_sentiment"])
+
+            change_in_count = post_count - prev_count
+            change_in_count_pct = (change_in_count / prev_count * 100 if prev_count else 0)
+            change_in_sentiment = avg_sentiment - prev_sent
+            change_in_sentiment_pct = (change_in_sentiment / abs(prev_sent) if prev_sent else 0)
         else:
-            change_in_count = change_in_count_pct = change_in_sentiment = change_in_sentiment_pct = 0
+            change_in_count = change_in_count_pct = change_in_sentiment = change_in_sentiment_pct = 0.0
 
         cursor.execute("""
             INSERT INTO social_sentiment_metrics(
@@ -156,7 +152,8 @@ def process_symbol(symbol, window_minutes=15, reddit_limit=50):
                 change_in_count, change_in_count_pct,
                 change_in_sentiment, change_in_sentiment_pct,
                 source
-            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'reddit')
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'reddit') 
+            ON CONFLICT (symbol, window_start) DO NOTHING
         """, (
             symbol, window_start, window_end, post_count, avg_sentiment,
             positive_ratio, negative_ratio, neutral_ratio,

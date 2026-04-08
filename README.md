@@ -31,7 +31,7 @@ To achieve this, the system follows a **decision-intelligence pipeline**, combin
 
 1. Market Data Acquisition (CoinGecko)  
 2. Social Data Acquisition (Reddit public endpoints)  
-3. Ingestion & Normalization (MySQL)  
+3. Ingestion & Normalization (PostgreSQL), Optimized for AI feature engineering and     cloud-readiness.  
 4. Metrics & Signal Computation  
 5. Analytics & Decision Dashboard  
 
@@ -74,7 +74,7 @@ Pipeline features:
 - Retry logic for external requests  
 - Structured logging for observability  
 
-**Milestone:** All ingestion pipelines are now **orchestrated via Airflow** (replacing cron), enabling scalable scheduling and laying the groundwork for cloud deployment. *(Screenshot attached in repo for reference)*  
+**Milestone:** All ingestion pipelines have been migrated from MySQL to PostgreSQL. This enables advanced indexing for AI training sets and ensures compatibility with production-grade cloud environments. Orchestration is fully handled via Airflow.*  
 
 ---
 

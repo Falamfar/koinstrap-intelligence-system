@@ -13,8 +13,9 @@ Features:
 
 import os
 import logging
-import mysql.connector
-from mysql.connector import Error
+import psycopg2 
+from psycopg2 import Error
+from psycopg2.extras import RealDictCursor 
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from typing import List
@@ -23,10 +24,11 @@ from typing import List
 # 1️⃣ ENVIRONMENT CONFIGURATION
 # ---------------------------------------------------------
 load_dotenv("/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env")
-DB_HOST = os.getenv("DB_HOST")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_NAME = os.getenv("DB_NAME")
+DB_HOST = os.getenv("PG_HOST")
+DB_USER = os.getenv("PG_USER")
+DB_PASSWORD = os.getenv("PG_PASSWORD")
+DB_NAME = os.getenv("PG_NAME")
+DB_PORT = os.getenv("PG_PORT") 
 
 # ---------------------------------------------------------
 # 2️⃣ LOGGER CONFIGURATION
@@ -43,13 +45,14 @@ if not logger.handlers:
 # 3️⃣ DATABASE CONNECTION
 # ---------------------------------------------------------
 def get_db_connection():
-    """Establish and return a MySQL connection."""
+    """Establish and return a PostgreSQL connection."""
     try:
-        conn = mysql.connector.connect(
+        conn = psycopg2.connect(
             host=DB_HOST,
             user=DB_USER,
             password=DB_PASSWORD,
-            database=DB_NAME
+            database=DB_NAME,
+            port=DB_PORT
         )
         logger.info("Database connection established.")
         return conn
@@ -85,7 +88,7 @@ def run_compute_metrics(symbols: List[str] = None,
     inserted_count = 0
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor) 
 
     metric_time = datetime.now(timezone.utc).replace(second=0, microsecond=0)
     aggregate_window_start = metric_time - timedelta(minutes=aggregate_window_minutes)
@@ -95,19 +98,11 @@ def run_compute_metrics(symbols: List[str] = None,
             metric_time, symbol, price_usd, price_change_5m, price_change_15m,
             volume_24h_usd, avg_price_1h, min_price_1h, max_price_1h
         ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        ON CONFLICT (metric_time, symbol) DO NOTHING 
     """
 
     try:
         for symbol in symbols:
-            # 1️⃣ Idempotency check: skip if already inserted
-            cursor.execute("""
-                SELECT COUNT(*) AS count
-                FROM crypto_metrics
-                WHERE metric_time = %s AND symbol = %s
-            """, (metric_time, symbol))
-            if cursor.fetchone()["count"] > 0:
-                logger.info(f"Metrics already computed for {symbol} at {metric_time}, skipping.")
-                continue
 
             # 2️⃣ Fetch raw data from last aggregate window
             cursor.execute("""
@@ -128,18 +123,18 @@ def run_compute_metrics(symbols: List[str] = None,
                     row["observed_at"] = row["observed_at"].replace(tzinfo=timezone.utc)
 
             # 4️⃣ Extract latest price and volume
-            price_now = rows[0]["price_usd"]
-            volume_24h_usd = rows[0]["volume_24h_usd"]
+            price_now = float(rows[0]["price_usd"])
+            volume_24h_usd = float(rows[0]["volume_24h_usd"]) 
 
             # 5️⃣ Compute price deltas for each window
             deltas = {}
             for delta_min in price_delta_windows:
                 cutoff_time = metric_time - timedelta(minutes=delta_min)
-                price_before = next((r["price_usd"] for r in rows if r["observed_at"] <= cutoff_time), price_now)
+                price_before = next((float(r["price_usd"]) for r in rows if r["observed_at"] <= cutoff_time), price_now)
                 deltas[f"price_change_{delta_min}m"] = clamp(price_now - price_before, -1e6, 1e6)
 
             # 6️⃣ Compute aggregates over the window
-            prices = [r["price_usd"] for r in rows]
+            prices = [float(r["price_usd"]) for r in rows]
             avg_price = sum(prices)/len(prices)
             min_price = min(prices)
             max_price = max(prices)
@@ -156,9 +151,11 @@ def run_compute_metrics(symbols: List[str] = None,
                 min_price,
                 max_price
             ))
-
-            inserted_count += 1
-            logger.info(f"Metrics computed and stored for {symbol} at {metric_time}")
+            if cursor.rowcount > 0:
+                inserted_count += 1
+                logger.info(f"Metrics computed and stored for {symbol} at {metric_time}")
+            else:
+                logger.info(f"Metrics for {symbol} at {metric_time} already exist. Skipping insert.")     
 
         conn.commit()
         logger.info(f"All metrics committed successfully. Total inserted: {inserted_count}")

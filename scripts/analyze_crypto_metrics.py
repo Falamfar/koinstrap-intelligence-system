@@ -14,8 +14,9 @@ Features:
 
 import os
 import logging
-import mysql.connector
-from mysql.connector import Error
+import psycopg2
+from psycopg2 import Error
+from psycopg2.extras import RealDictCursor
 from datetime import datetime, timezone
 from decimal import Decimal
 from dotenv import load_dotenv
@@ -26,10 +27,11 @@ from typing import List, Dict
 # ---------------------------------------------------------
 load_dotenv("/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env")
 
-DB_HOST = os.getenv("DB_HOST")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_NAME = os.getenv("DB_NAME")
+DB_HOST = os.getenv("PG_HOST")
+DB_USER = os.getenv("PG_USER")
+DB_PASSWORD = os.getenv("PG_PASSWORD")
+DB_NAME = os.getenv("PG_NAME") 
+DB_PORT = os.getenv("PG_PORT") 
 
 # ---------------------------------------------------------
 # 2️⃣ LOGGER CONFIGURATION
@@ -52,13 +54,14 @@ VOLUME_SPIKE_MULTIPLIER = Decimal("1.5")  # 50% increase in volume triggers spik
 # 4️⃣ DATABASE CONNECTION
 # ---------------------------------------------------------
 def get_db_connection():
-    """Return a MySQL database connection."""
+    """Return a PostgreSQL database connection."""
     try:
-        conn = mysql.connector.connect(
+        conn = psycopg2.connect(
             host=DB_HOST,
             user=DB_USER,
             password=DB_PASSWORD,
-            database=DB_NAME
+            database=DB_NAME,
+            port = DB_PORT
         )
         logger.info("Database connection established.")
         return conn
@@ -138,7 +141,7 @@ def run_analysis(symbols: List[str] = None) -> int:
     inserted_count = 0
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     analysis_time = datetime.now(timezone.utc).replace(second=0, microsecond=0)
 
@@ -147,12 +150,13 @@ def run_analysis(symbols: List[str] = None) -> int:
             analysis_time, symbol, metric_time_ref, is_price_spike,
             is_trend_reversal, is_volume_spike, trend_signal, notes
         ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-        ON DUPLICATE KEY UPDATE
-            is_price_spike=VALUES(is_price_spike),
-            is_trend_reversal=VALUES(is_trend_reversal),
-            is_volume_spike=VALUES(is_volume_spike),
-            trend_signal=VALUES(trend_signal),
-            notes=VALUES(notes)
+        ON CONFLICT (analysis_time, symbol) 
+        DO UPDATE SET
+            is_price_spike=EXCLUDED.is_price_spike,
+            is_trend_reversal=EXCLUDED.is_trend_reversal,
+            is_volume_spike=EXCLUDED.is_volume_spike,
+            trend_signal=EXCLUDED.trend_signal,
+            notes=EXCLUDED.notes
     """
 
     try:

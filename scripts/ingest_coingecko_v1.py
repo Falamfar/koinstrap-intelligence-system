@@ -14,8 +14,8 @@ Features:
 import os
 import logging
 import requests
-import mysql.connector
-from mysql.connector import Error
+import psycopg2 
+from psycopg2 import Error 
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from typing import List, Dict
@@ -26,10 +26,11 @@ from typing import List, Dict
 load_dotenv("/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env")
 
 COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY")
-DB_HOST = os.getenv("DB_HOST")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_NAME = os.getenv("DB_NAME")
+DB_HOST = os.getenv("PG_HOST")
+DB_USER = os.getenv("PG_USER")
+DB_PASSWORD = os.getenv("PG_PASSWORD")
+DB_NAME = os.getenv("PG_NAME") 
+DB_PORT = os.getenv("PG_PORT")
 
 # ---------------------------------------------------------
 # 2️⃣ LOGGER CONFIGURATION
@@ -46,9 +47,9 @@ if not logger.handlers:
 # 3️⃣ DATABASE CONNECTION
 # ---------------------------------------------------------
 def get_db_connection():
-    """Establish and return a MySQL connection."""
+    """Establish and return a PostgreSQL connection."""
     try:
-        conn = mysql.connector.connect(
+        conn = psycopg2.connect(
             host=DB_HOST,
             user=DB_USER,
             password=DB_PASSWORD,
@@ -125,9 +126,10 @@ def run_ingest(symbols: List[str] = None, vs_currency: str = "usd") -> int:
         INSERT INTO raw_crypto_market_data
         (symbol, name, price_usd, volume_24h_usd, observed_at)
         VALUES (%s, %s, %s, %s, %s)
-        ON DUPLICATE KEY UPDATE
-        price_usd = VALUES(price_usd),
-        volume_24h_usd = VALUES(volume_24h_usd)
+        ON CONFLICT (symbol, observed_at)
+        DO UPDATE SET
+        price_usd = EXCLUDED.price_usd,
+        volume_24h_usd = EXCLUDED.volume_24h_usd
     """
 
     try:

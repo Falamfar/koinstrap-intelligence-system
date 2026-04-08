@@ -14,8 +14,9 @@ Features:
 
 import os
 import logging
-import mysql.connector
-from mysql.connector import Error
+import psycopg2
+from psycopg2 import Error
+from psycopg2.extras import RealDictCursor 
 from dotenv import load_dotenv
 from datetime import datetime, timezone
 from typing import Dict
@@ -25,10 +26,11 @@ from typing import Dict
 # ---------------------------------------------------------
 load_dotenv("/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env")
 
-DB_HOST = os.getenv("DB_HOST")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_NAME = os.getenv("DB_NAME")
+DB_HOST = os.getenv("PG_HOST")
+DB_USER = os.getenv("PG_USER")
+DB_PASSWORD = os.getenv("PG_PASSWORD")
+DB_NAME = os.getenv("PG_NAME")
+DB_PORT = os.getenv("PG_PORT", 5432) 
 
 # ---------------------------------------------------------
 # 2️⃣ LOGGER CONFIGURATION
@@ -59,13 +61,14 @@ CONF_WEIGHTS = {
 # 4️⃣ DATABASE CONNECTION
 # ---------------------------------------------------------
 def get_db_connection():
-    """Return MySQL connection object."""
+    """Return PostgreSQL connection object."""
     try:
-        conn = mysql.connector.connect(
+        conn = psycopg2.connect( 
             host=DB_HOST,
             user=DB_USER,
             password=DB_PASSWORD,
-            database=DB_NAME
+            database=DB_NAME,
+            port=DB_PORT
         )
         logger.info("Database connection established.")
         return conn
@@ -99,12 +102,16 @@ def compute_confidence(row: Dict, sentiment_row: Dict = None) -> float:
     # Trend signals
     trend = row.get('trend_signal')
     if trend == "Bullish": conf += CONF_WEIGHTS["bullish_trend"]
-    elif trend == "Bearish": conf += CONF_WEIGHTS["bearish_trend"]
+    elif trend == "Bearish": conf += CONF_WEIGHTS["bearish_trend"] 
 
     # Social sentiment metrics (optional)
     if sentiment_row:
-        conf += sentiment_row.get('change_in_sentiment_pct', 0) * CONF_WEIGHTS["sentiment_pct_multiplier"]
-        conf += sentiment_row.get('change_in_count_pct', 0) * CONF_WEIGHTS["social_activity_multiplier"]
+
+        sent_pct = float(sentiment_row.get('change_in_sentiment_pct',0) or 0)  
+        count_pct = float(sentiment_row.get('change_in_count_pct',0) or 0)  
+
+        conf += sent_pct * CONF_WEIGHTS["sentiment_pct_multiplier"]
+        conf += count_pct * CONF_WEIGHTS["social_activity_multiplier"]
 
     return clamp(conf)
 
@@ -125,7 +132,7 @@ def run_confidence(symbols: list = None) -> int:
     updated_count = 0
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor) 
 
     try:
         for symbol in symbols:
