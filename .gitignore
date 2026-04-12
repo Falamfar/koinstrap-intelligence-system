@@ -1,18 +1,32 @@
-#python 
-venv/
+# Python junk
 __pycache__/
 *.pyc
+*.py[cod]
+*$py.class
 
-#data
+# Environments (Catching both local and parent venvs)
+*venv*/
+venv/
+.venv/
 
-data/raw/
-data/processed/
-
-
-#confif with secrets
+# Config & Secrets
+.env
 config/.env
 
-#logs
-
+# Data & Logs
+data/
 logs/
+*.log
+
+# System & Airflow temporary files
+*.pid
+*.db
+airflow/
+
+# OS specific
+.DS_Storev 
+
+# Airflow Virtual Environments
+airflow_venv_311/
+airflow_venv_311_py311/
 
