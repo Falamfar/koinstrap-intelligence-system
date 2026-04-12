@@ -80,17 +80,11 @@ Pipeline features:
 
 ### ✅ Layer 4 – Metrics & Signal Computation
 
-**Market Metrics:**  
-- 5m, 15m price change  
-- 1-hour rolling aggregates (avg, min, max)  
-- Sparse/missing data handling  
+- Automated Feature Pipeline: Integrated a secondary orchestration layer in Airflow to transform raw metrics into ML-ready features. 
+- Time-Series Labeling: Implemented a 60-minute "look-ahead" logic to automatically label market data for supervised learning.  
+- Self-Growing Dataset: The system now autonomously builds the ml_features table, creating a unique, high-fidelity historical dataset for model retraining.
 
-**Social Metrics:**  
-- Post count per time window  
-- Average sentiment score & sentiment ratios  
-- Window-to-window changes (volume & sentiment)  
 
-**Outcome:** Combines **price and social signals** into a **confidence score** that guides decision-making.
 
 ---
 
