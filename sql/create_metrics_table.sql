@@ -1,9 +1,13 @@
 CREATE TABLE crypto_metrics (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    symbol VARCHAR(10),
-    metric_time DATETIME,
-    price_usd DECIMAL(18,8),
-    price_change_5m DECIMAL(18,8),
-    price_change_15m DECIMAL(18,8),
-    volume_24h_usd DECIMAL(18,8)
+    id SERIAL PRIMARY KEY,
+    metric_time TIMESTAMP NOT NULL,
+    symbol VARCHAR(20) NOT NULL,
+    price_usd NUMERIC,
+    price_change_5m NUMERIC,
+    price_change_15m NUMERIC,
+    volume_24h_usd NUMERIC,
+    avg_price_1h NUMERIC,
+    min_price_1h NUMERIC,
+    max_price_1h NUMERIC,
+    CONSTRAINT unique_metrics_time_symbol UNIQUE (metric_time, symbol)
 );
