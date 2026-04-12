@@ -21,7 +21,7 @@ logs/
 # System & Airflow temporary files
 *.pid
 *.db
-airflow/
+
 
 # OS specific
 .DS_Storev 
@@ -30,3 +30,5 @@ airflow/
 airflow_venv_311/
 airflow_venv_311_py311/
 
+koinstrap_brain.pkl
+koinstrap.env
