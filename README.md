@@ -33,7 +33,8 @@ To achieve this, the system follows a **decision-intelligence pipeline**, combin
 2. Social Data Acquisition (Reddit public endpoints)  
 3. Ingestion & Normalization (PostgreSQL), Optimized for AI feature engineering and     cloud-readiness.  
 4. Metrics & Signal Computation  
-5. Analytics & Decision Dashboard  
+5. Analytics & Decision Dashboard 
+6. AI Insight & Recommendation Engine 
 
 **Planned/Next Evolution:**
 
@@ -74,15 +75,17 @@ Pipeline features:
 - Retry logic for external requests  
 - Structured logging for observability  
 
+### ✅ Layer 4 – Metrics & Feature Engineering (Optimized)
+- Feature Store: Implemented ml_features as the centralized "Source of Truth" for all downstream intelligence.
+
+- Real-Time Momentum: Engineered 5-minute and 15-minute price momentum and trend signals to capture micro-volatility.
+
+- Synchronized Orchestration: Market and Social DAGs are now cross-aligned in Airflow to ensure data freshness every 5 minutes.
+
 **Milestone:** All ingestion pipelines have been migrated from MySQL to PostgreSQL. This enables advanced indexing for AI training sets and ensures compatibility with production-grade cloud environments. Orchestration is fully handled via Airflow.*  
 
 ---
 
-### ✅ Layer 4 – Metrics & Signal Computation
-
-- Automated Feature Pipeline: Integrated a secondary orchestration layer in Airflow to transform raw metrics into ML-ready features. 
-- Time-Series Labeling: Implemented a 60-minute "look-ahead" logic to automatically label market data for supervised learning.  
-- Self-Growing Dataset: The system now autonomously builds the ml_features table, creating a unique, high-fidelity historical dataset for model retraining.
 
 
 
@@ -97,14 +100,24 @@ Pipeline features:
 - Alert signals for price spikes, trend reversals, and social activity surges  
 - Plotly-based visualizations for exploration  
 
+### ✅ Layer 6 – AI Insight & Recommendation Engine ("James")
+- Hybrid Intelligence: Merged a Random Forest Classifier (Probability/Quant) with Llama-3 via Groq (Narrative/Analyst).
+
+- The Signal Factory: Developed a unified inference script (koinstrap_signal_factory.py) that generates high-conviction alerts.
+
+- Context-Aware Reasoning: The system now distinguishes between "Neutral Social Sentiment" and "Missing Social Data," ensuring the AI doesn't hallucinate during low-volume periods.
+
+- Predictive Certainty: Every insight is accompanied by a mathematical confidence score (e.g., "82% Probability of UP").
+
 ---
 
 ### 🚀 Next Evolution – AI Insight & Recommendation Layer
 
-- Transform numeric signals into **human-readable insights**  
-- Deliver **contextual recommendations** alongside confidence scores  
-- Enable **real-time automated alerts** for traders  
-- Goal: make KoinStrap a **decision-making companion**, not just a tracking tool  
+- Performance Tracking: Implementing a signals_history ledger to audit AI prediction accuracy over time (The "Win-Rate" Tracker).
+
+- Cloud Migration: Containerization with Docker for deployment to AWS/GCP.
+
+- Frontend Expansion: Scaling the Streamlit dashboard into a multi-user e-commerce platform. 
 
 ---
 
