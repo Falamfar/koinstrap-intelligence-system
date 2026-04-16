@@ -70,111 +70,97 @@ def clamp(value, min_value=0, max_value=1e9):
 # ---------------------------------------------------------
 # 5️⃣ MAIN METRICS FUNCTION (DAG-FRIENDLY)
 # ---------------------------------------------------------
-def run_compute_metrics(symbols: List[str] = None, 
-                        price_delta_windows: List[int] = [5, 15], 
-                        aggregate_window_minutes: int = 60) -> int:
-    """
-    Compute metrics from raw_crypto_market_data and insert into crypto_metrics.
 
-    Args:
-        symbols: list of coin symbols to process
-        price_delta_windows: list of delta windows in minutes (default [5, 15])
-        aggregate_window_minutes: aggregation window for min/max/avg price
 
-    Returns:
-        inserted_count: number of metrics inserted
-    """
-    symbols = symbols or ["btc", "eth"]
-    inserted_count = 0
-
+def run_compute_metrics(symbols=["btc", "eth"], price_delta_windows=[5, 15]):
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor) 
-
-    metric_time = datetime.now(timezone.utc).replace(second=0, microsecond=0)
-    aggregate_window_start = metric_time - timedelta(minutes=aggregate_window_minutes)
-
-    insert_query = """
-        INSERT INTO crypto_metrics (
-            metric_time, symbol, price_usd, price_change_5m, price_change_15m,
-            volume_24h_usd, avg_price_1h, min_price_1h, max_price_1h
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
-        ON CONFLICT (metric_time, symbol) DO NOTHING 
-    """
+    inserted_count = 0
 
     try:
         for symbol in symbols:
+            # STEP 1: Find the LATEST timestamp available for this symbol in RAW data
+            cursor.execute("""
+                SELECT MAX(observed_at) as latest_time 
+                FROM raw_crypto_market_data 
+                WHERE symbol = %s
+            """, (symbol,))
+            res = cursor.fetchone()
+            
+            if not res or not res['latest_time']:
+                logger.warning(f"No raw data found at all for {symbol}. Skipping.")
+                continue
+                
+            
+            metric_time = res['latest_time'].replace(second=0, microsecond=0)
+            
+            # Look back 70 mins from the DATA'S timestamp
+            aggregate_window_start = metric_time - timedelta(minutes=70)
 
-            # 2️⃣ Fetch raw data from last aggregate window
+            # STEP 2: Fetch raw data around that specific timestamp
             cursor.execute("""
                 SELECT observed_at, price_usd, volume_24h_usd
                 FROM raw_crypto_market_data
-                WHERE symbol = %s AND observed_at >= %s
+                WHERE symbol = %s AND observed_at >= %s AND observed_at <= %s
                 ORDER BY observed_at DESC
-            """, (symbol, aggregate_window_start))
+            """, (symbol, aggregate_window_start, metric_time))
             rows = cursor.fetchall()
 
             if not rows:
-                logger.warning(f"No raw data for {symbol} in the last {aggregate_window_minutes} minutes.")
+                logger.info(f"No rows found for {symbol} at target time {metric_time}")
                 continue
 
-            # 3️⃣ Make timestamps UTC aware if not
-            for row in rows:
-                if row["observed_at"].tzinfo is None:
-                    row["observed_at"] = row["observed_at"].replace(tzinfo=timezone.utc)
-
-            # 4️⃣ Extract latest price and volume
+          
             price_now = float(rows[0]["price_usd"])
-            volume_24h_usd = float(rows[0]["volume_24h_usd"]) 
-
-            # 5️⃣ Compute price deltas for each window
             deltas = {}
+
             for delta_min in price_delta_windows:
                 cutoff_time = metric_time - timedelta(minutes=delta_min)
-                price_before = next((float(r["price_usd"]) for r in rows if r["observed_at"] <= cutoff_time), price_now)
-                deltas[f"price_change_{delta_min}m"] = clamp(price_now - price_before, -1e6, 1e6)
+                # Fuzzy look-back: find closest row <= cutoff
+                price_before_row = next((r for r in rows if r["observed_at"] <= cutoff_time), None)
+                
+                if price_before_row:
+                    price_before = float(price_before_row["price_usd"])
+                    pct_change = ((price_now - price_before) / price_before) * 100
+                    deltas[f"price_change_{delta_min}m"] = round(pct_change, 4)
+                else:
+                    deltas[f"price_change_{delta_min}m"] = 0.0
 
-            # 6️⃣ Compute aggregates over the window
+            # Aggregates
             prices = [float(r["price_usd"]) for r in rows]
             avg_price = sum(prices)/len(prices)
-            min_price = min(prices)
-            max_price = max(prices)
-
-            # 7️⃣ Insert metrics into crypto_metrics
+            
+            # STEP 4: Insert (Using the Data's actual timestamp)
+            insert_query = """
+                INSERT INTO crypto_metrics (
+                    metric_time, symbol, price_usd, price_change_5m, price_change_15m,
+                    volume_24h_usd, avg_price_1h, min_price_1h, max_price_1h
+                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                ON CONFLICT (metric_time, symbol) DO NOTHING 
+            """
             cursor.execute(insert_query, (
-                metric_time,
-                symbol,
-                price_now,
-                deltas.get("price_change_5m"),
-                deltas.get("price_change_15m"),
-                volume_24h_usd,
-                avg_price,
-                min_price,
-                max_price
+                metric_time, symbol, price_now, 
+                deltas.get("price_change_5m"), deltas.get("price_change_15m"),
+                rows[0]["volume_24h_usd"], avg_price, min(prices), max(prices)
             ))
+            
             if cursor.rowcount > 0:
                 inserted_count += 1
-                logger.info(f"Metrics computed and stored for {symbol} at {metric_time}")
+                logger.info(f"🚀 SUCCESS: Computed metrics for {symbol} at {metric_time}")
             else:
-                logger.info(f"Metrics for {symbol} at {metric_time} already exist. Skipping insert.")     
+                logger.info(f"😴 SKIPPED: Metrics for {symbol} at {metric_time} already exist.")
 
         conn.commit()
-        logger.info(f"All metrics committed successfully. Total inserted: {inserted_count}")
 
     except Exception as e:
-        if conn:
-            conn.rollback()
-        logger.error("Error computing metrics. Transaction rolled back.", exc_info=True)
+        conn.rollback()
+        logger.error(f"❌ DATABASE ERROR: {e}")
         raise
     finally:
-        if cursor: cursor.close()
-        if conn: conn.close()
-        logger.info("Database connection closed.")
+        conn.close()
+        logger.info(f"Process complete. Total metrics created: {inserted_count}")
 
     return inserted_count
 
-# ---------------------------------------------------------
-# 6️⃣ ENTRY POINT FOR MANUAL RUN
-# ---------------------------------------------------------
 if __name__ == "__main__":
-    inserted = run_compute_metrics()
-    logger.info(f"Manual run complete. {inserted} metrics inserted.")
+    run_compute_metrics()

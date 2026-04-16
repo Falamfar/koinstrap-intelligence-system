@@ -94,7 +94,7 @@ def compute_signals(current_row: Dict, prev_row: Dict = None) -> Dict:
         return None
 
     # 1️⃣ Price spike
-    pct_move = abs(price_change_5m / price_usd)
+    pct_move = abs(price_change_5m )/100
     is_price_spike = pct_move >= PRICE_SPIKE_THRESHOLD
 
     # 2️⃣ Trend reversal

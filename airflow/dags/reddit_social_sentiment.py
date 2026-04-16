@@ -31,16 +31,8 @@ reddit_task = BashOperator(
     dag=dag
 ) 
 
-# Task 2 (populate ml features)
-ml_feature_task = BashOperator(
-    task_id='ml_feature_task',
-    bash_command=(
-        # Activate the correct Python virtual environment
-        'source ~/koinstrap_platform/projects/koinstrap/airflow_venv_311_py311/bin/activate && '
-        # Run the ML feature population script
-        'python3 /home/falamfar/koinstrap_platform/projects/koinstrap/scripts/populate_ml_features.py'
-    ),
-    dag=dag
-)
-# THE CHAIN: Reddit must finish before ML features are updated
-reddit_task >> ml_feature_task 
+reddit_task 
+
+
+
+
