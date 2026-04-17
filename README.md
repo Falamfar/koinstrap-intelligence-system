@@ -124,37 +124,42 @@ Pipeline features:
 
 ## System Capabilities & Demonstrations
 
-- End-to-end **data pipeline design**  
-- Multi-source ingestion (market + social)  
-- Feature engineering and metric computation  
-- Social sentiment integration into financial intelligence  
-- Automation with **Airflow orchestration**  
-- Logging, observability, and production-ready architecture  
-- Modular Python design, **cloud-ready infrastructure**  
+- End-to-End Data Pipeline Design: Architecture spanning from raw ingestion to live mobile delivery.
+
+- Multi-Source Ingestion: Automated fetching and normalization of market data (CoinGecko) and high-velocity social signals (Reddit).
+
+- Feature Engineering & ML Inference: Real-time computation of momentum metrics and sentiment scores, serving as inputs for a Random Forest Predictive Brain.
+
+- Hybrid AI Narrative Engine: Integration of quantitative ML predictions with qualitative LLM reasoning (Llama-3.3 via Groq) to produce "James," a human-readable market analyst.
+
+- Production API Layer: High-performance FastAPI implementation for standardized JSON data exchange with external mobile and web applications.
+
+- Infrastructure & Networking: Advanced WSL2-to-Windows PortProxy configuration, enabling secure public access to internal Linux-hosted services.
+
+- Automation & Orchestration: Fully scheduled operations via Apache Airflow, ensuring 5-minute data freshness and decision consistency.
+
+- Observability & Reliability: Integrated logging, PostgreSQL transaction safety, and repository-level Secret Protection (push security).
+
+- Cloud-Ready Modular Python: Decoupled design following production standards, ready for Dockerization and AWS/GCP deployment.
 
 ---
 
 ## Project Status
 
-- Active development with **local + Airflow orchestration**  
-- Automated ingestion of CoinGecko and Reddit data  
-- Confidence score computation fully functional  
-- Real-time analytics dashboard deployed locally  
-- Next milestones: AI insights integration, cloud deployment, and alert delivery  
+- Operational Pipeline: End-to-end automation with local + Airflow orchestration running at 5-minute intervals.
+
+- Production Data Streams: Robust, automated ingestion of CoinGecko (Financial) and Reddit (Sentiment) data.
+
+- Live Intelligence: AI-driven narrative engine ("James") fully integrated, merging Random Forest predictions with Llama-3 reasoning.
+
+- Deployment Ready: High-performance FastAPI delivery layer is active, serving JSON insights via a secure WSL2-to-Public-IP network bridge.
+
+- Next Milestones: - Implementation of the Market Anomaly Detector (Factual Alerting Track). 
 
 ---
 
 ## Next Steps
 
-## Near-Term:
-
-- AI layer for insights & recommendations
-
-- Sentiment-to-price divergence detection
-
-- Signal scoring and prioritization
-
-## Mid-Term:
 
 - Cloud deployment (AWS/GCP/Azure)
 
