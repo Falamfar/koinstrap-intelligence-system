@@ -6,8 +6,11 @@ from psycopg2.extras import RealDictCursor
 from fastapi import FastAPI, HTTPException
 from dotenv import load_dotenv
 
+# Path Configuration
 LOG_PATH = "/home/falamfar/koinstrap_platform/projects/koinstrap/logs/api.log"
+ENV_PATH = "/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env"
 
+# Logging Setup
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
@@ -18,42 +21,90 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-load_dotenv("/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env")
-app = FastAPI(title = "Koinstrap Ai Insight API")
+# Load Environment Variables
+load_dotenv(ENV_PATH)
+
+app = FastAPI(title="Koinstrap AI Insight API")
 
 def get_db_connection():
-    conn = psycopg2.connect(
-        dbname=os.getenv("PG_NAME"),
-        user=os.getenv("PG_USER"),
-        password=os.getenv("PG_PASSWORD"),
-        host=os.getenv("PG_HOST"),
-        port=os.getenv("PG_PORT")
-    )
-    return conn 
-    
+    """Establishes a fresh connection to the PostgreSQL database."""
+    try:
+        conn = psycopg2.connect(
+            dbname=os.getenv("PG_NAME"),
+            user=os.getenv("PG_USER"),
+            password=os.getenv("PG_PASSWORD"),
+            host=os.getenv("PG_HOST"),
+            port=os.getenv("PG_PORT")
+        )
+        return conn
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
+        raise e
+
 # ---  API ENDPOINTS ---    
+
 @app.get("/")
 def home():
     """Health check endpoint."""
     logger.info("Root endpoint accessed")
     return {
         "status": "online",
-        "message": "Koinstrap AI insight API is active. Use /API/insight/{symbol} for data."
+        "message": "Koinstrap AI Insight API is active.",
+        "endpoints": {
+            "all_insights": "/api/insights/all",
+            "single_symbol": "/api/insight/{symbol}"
+        }
     }
+
+@app.get("/api/insights/all")
+def get_all_insights():
+    """
+    Returns a single JSON package containing the latest insights 
+    for all available symbols (BTC, ETH, etc.) in the database.
+    """
+    logger.info("Incoming request for ALL market insights")
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Retrieves the most recent entry for each unique symbol
+        query = """
+            SELECT DISTINCT ON (symbol) 
+                symbol, prediction_label, confidence_score, james_narrative, created_at
+            FROM signals_live
+            ORDER BY symbol, created_at DESC
+        """
+        cur.execute(query)
+        results = cur.fetchall()
+
+        cur.close()
+        return {
+            "status": "success",
+            "count": len(results),
+            "data": results,
+            "legal_notice": "AI analysis is for informational purposes only. Not financial advice."
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching all insights: {e}")
+        return {"status": "error", "message": "Internal Server Error"}
+    finally:
+        if conn:
+            conn.close()
 
 @app.get("/api/insight/{symbol}")
 def get_james_insight(symbol: str):
     """
     Fetches the latest AI-generated insight for a specific cryptocurrency.
-    This is the primary endpoint for the mobile app developer.
     """
     symbol = symbol.upper()
-    logger.info(f"incoming request for symbol: {symbol}")
+    logger.info(f"Incoming request for single symbol: {symbol}")
+    conn = None
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
-        # Query retrieves only the most recent entry for the given asset
         query = """
             SELECT symbol, prediction_label, confidence_score, james_narrative, created_at
             FROM signals_live
@@ -65,25 +116,22 @@ def get_james_insight(symbol: str):
         result = cur.fetchone()
 
         cur.close()
-        conn.close()
 
         if not result:
             logger.warning(f"No insight found for symbol: {symbol}")
             raise HTTPException(status_code=404, detail=f"No insight found for symbol: {symbol}")
 
-        logger.info(f"Insight retrieved successfully for symbol: {symbol}")
         return {
             "status": "success",
             "data": result,
             "legal_notice": "AI analysis is for informational purposes only. Not financial advice."
         }
 
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        logger.error(f"Error occurred while fetching insight for symbol: {symbol}. Error: {e}")
-        return {
-            "status": "error",
-            "message": "Internal Server Error"
-        }
-
-
-
+        logger.error(f"Error fetching insight for {symbol}: {e}")
+        return {"status": "error", "message": "Internal Server Error"}
+    finally:
+        if conn:
+            conn.close()
