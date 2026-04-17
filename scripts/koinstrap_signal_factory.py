@@ -102,6 +102,37 @@ def generate_signals(row):
         logger.error(f"signal generation error for {row['symbol']}: {e}")
         return None
 
+def save_signal_to_live_db(signal):
+    """Save the generated signal to the signals_live table."""
+    try:
+        conn = psycopg2.connect(
+            dbname=os.getenv("PG_NAME"),
+            user=os.getenv("PG_USER"),
+            password=os.getenv("PG_PASSWORD"),
+            host=os.getenv("PG_HOST"),
+            port=os.getenv("PG_PORT")
+        )
+        cur = conn.cursor()
+
+        clean_confidence = float(signal['certainty'].strip('%')) / 100.0
+        query = """
+        INSERT INTO signals_live (symbol, prediction_label, confidence_score, james_narrative)
+        VALUES (%s, %s, %s, %s);
+        """
+        cur.execute(query, (
+            signal['symbol'],
+            signal['prediction'],
+            clean_confidence,
+            signal['insight']
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        logger.info(f"✅ Successfully pushed {signal['symbol']} signal to Live UI table.")
+    except Exception as e:
+        logger.error(f"Error saving signal to live DB for {signal['symbol']}: {e}")
+
+
 if __name__=="__main__":
     logger.info("james is genarating the master signals...")
     data = get_latest_features() 
@@ -113,5 +144,6 @@ if __name__=="__main__":
                 logger.info(f"----FINAL SIGNAL: {signal['symbol']}----")
                 logger.info(f"Prediction: {signal['prediction']} with {signal['certainty']} certainty")
                 logger.info(f"james says: {signal['insight']}") 
-                # Here is where you would eventually add: send_to_telegram(signal) or send_email(signal)
+                save_signal_to_live_db(signal) 
+               
 

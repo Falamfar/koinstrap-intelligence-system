@@ -109,6 +109,7 @@ Pipeline features:
 
 - Predictive Certainty: Every insight is accompanied by a mathematical confidence score (e.g., "82% Probability of UP").
 
+-FastAPI Integration: Developed a RESTful API (api.py) that serves real-time JSON packets to the KoinStrap mobile application.
 ---
 
 ### 🚀 Next Evolution – AI Insight & Recommendation Layer
