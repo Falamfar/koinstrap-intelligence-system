@@ -1,36 +1,20 @@
-# Python junk
-__pycache__/
-*.pyc
-*.py[cod]
-*$py.class
-
-# Environments (Catching both local and parent venvs)
-*venv*/
-venv/
-.venv/
-
-# Config & Secrets
-.env
-config/.env
-
-# Data & Logs
-data/
-logs/
-*.log
-
-# System & Airflow temporary files
-*.pid
-*.db
 
 
-# OS specific
-.DS_Storev 
-
-# Airflow Virtual Environments
-airflow_venv_311/
+# Virtual Environments
+airflow_v2/
 airflow_venv_311_py311/
+koinstrap_venv/
+scripts/venv/
+venv/
 
-koinstrap_brain.pkl
+# Environment variables / Secrets
+*.env
 koinstrap.env
 
-scripts/market_sentry.py 
+# Python caching & artifacts
+__pycache__/
+*.pyc
+*.pkl
+
+# Logs
+logs/
