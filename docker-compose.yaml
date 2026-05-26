@@ -1,0 +1,71 @@
+services:
+  # 1. The Database Warehouse
+  db:
+    image: postgres:15
+    container_name: koinstrap_db
+    restart: always
+    environment:
+      - POSTGRES_USER=${PG_USER}
+      - POSTGRES_PASSWORD=${PG_PASSWORD}
+      - POSTGRES_DB=${PG_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - koinstrap_data:/var/lib/postgresql/data
+      - ./scripts/init-airflow-db.sh:/docker-entrypoint-initdb.d/init-airflow-db.sh
+
+  # 2. Your FastAPI App (The Face)
+  api:
+    build: .
+    container_name: koinstrap_api
+    restart: always
+    depends_on:
+      - db
+    env_file:
+      - .env
+    ports: 
+      - "8000:8000"
+    environment:
+      - DB_HOST=db
+
+  # 3. Airflow Webserver (The UI Cockpit)
+  airflow-webserver:
+    image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.7.3}
+    user: "0:0"
+    container_name: koinstrap_airflow_webserver
+    restart: always
+    depends_on:
+      - db
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://koinstrap_admin:Falamfarishere%401@koinstrap_db:5432/koinstrap_airflow
+    command: webserver
+
+  # 4. Airflow Scheduler (The Automation Heartbeat)
+  airflow-scheduler:
+    image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.7.3}
+    user: "0:0"
+    container_name: koinstrap_airflow_scheduler
+    restart: always
+    depends_on:
+      - db
+    env_file:
+      - .env
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://koinstrap_admin:Falamfarishere%401@koinstrap_db:5432/koinstrap_airflow
+    command: scheduler
+
+# --- CRITICAL: THIS WAS MISSING OR MISALIGNED ---
+volumes:
+  koinstrap_data:

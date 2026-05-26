@@ -4,29 +4,39 @@ import psycopg2
 import logging
 import joblib
 import pandas as pd 
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn") 
+warnings.filterwarnings("ignore", message=".*pandas only supports SQLAlchemy connectable.*")
 from psycopg2.extras import RealDictCursor
 from groq import Groq
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 
 #setup logging
-log_format = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+def setup_logger(name: str):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
 
-LOG_PATH = "/home/falamfar/koinstrap_platform/projects/koinstrap/logs/signal_factory.log"
+    if not logger.handlers:  # prevents duplicates in Airflow
+        formatter = logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(message)s"
+        )
 
-file_handler = logging.FileHandler(LOG_PATH, mode = "a")
-file_handler.setFormatter(log_format)
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(formatter)
 
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setFormatter(log_format)
+        logger.addHandler(handler)
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+    return logger
 
-logging.getLogger().addHandler(file_handler)
-logging.getLogger().addHandler(console_handler)
 
-load_dotenv("/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env") 
+logger = setup_logger(__name__)
+
+import pathlib
+BASE_DIR = str(pathlib.Path(__file__).resolve().parent.parent)
+
+ENV_PATH = "/app/config/.env"
+load_dotenv(ENV_PATH)
 
 def get_latest_features():
     """Fetch the absolute latest pre-joined features for all symbols."""
@@ -59,7 +69,7 @@ def generate_signals(row):
     """The core engine: Predict first, then explain."""
     try:
         # 1. THE BRAIN (Prediction)
-        model_path = "/home/falamfar/koinstrap_platform/projects/koinstrap/scripts/koinstrap_brain.pkl"  
+        model_path = os.path.join(BASE_DIR, "scripts", "koinstrap_brain.pkl")
         brain = joblib.load(model_path)
 
         feature_cols = ['price_change_5m', 'price_change_15m', 'volume_24h_usd', 'post_count', 'avg_sentiment','confidence_score'] 
@@ -133,17 +143,23 @@ def save_signal_to_live_db(signal):
         logger.error(f"Error saving signal to live DB for {signal['symbol']}: {e}")
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     logger.info("james is genarating the master signals...")
     data = get_latest_features() 
 
-    if data is not None:
-        for _, row in data.iterrows():
-            signal = generate_signals(row)  
-            if signal:
-                logger.info(f"----FINAL SIGNAL: {signal['symbol']}----")
-                logger.info(f"Prediction: {signal['prediction']} with {signal['certainty']} certainty")
-                logger.info(f"james says: {signal['insight']}") 
-                save_signal_to_live_db(signal) 
+    # CRITICAL SECURITY CHECK: If database fails or returns no features, KILL THE PIPELINE
+    if data is None or data.empty:
+        logger.error("❌ CRITICAL FAILURE: No feature data could be retrieved from ml_features table!")
+        # Raising an unhandled exception forces Python to exit with code 1, turning Airflow RED
+        raise ValueError("Pipeline halted: Missing critical market features data.")
+
+    # If data exists, proceed normally
+    for _, row in data.iterrows():
+        signal = generate_signals(row)  
+        if signal:
+            logger.info(f"----FINAL SIGNAL: {signal['symbol']}----")
+            logger.info(f"Prediction: {signal['prediction']} with {signal['certainty']} certainty")
+            logger.info(f"james says: {signal['insight']}") 
+            save_signal_to_live_db(signal)
                
 

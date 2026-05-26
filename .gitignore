@@ -32,3 +32,5 @@ airflow_venv_311_py311/
 
 koinstrap_brain.pkl
 koinstrap.env
+
+scripts/market_sentry.py 

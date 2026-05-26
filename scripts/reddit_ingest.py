@@ -15,6 +15,7 @@ import os
 import logging
 import requests
 import psycopg2
+import sys 
 from psycopg2 import Error 
 from psycopg2.extras import RealDictCursor
 from datetime import datetime, timezone, timedelta
@@ -24,7 +25,9 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 # -----------------------------
 # Load environment variables
 # -----------------------------
-load_dotenv("/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env")
+ENV_PATH = "/app/config/.env"
+load_dotenv(ENV_PATH)
+
 DB_HOST = os.getenv("PG_HOST")
 DB_USER = os.getenv("PG_USER")
 DB_PASSWORD = os.getenv("PG_PASSWORD")
@@ -34,14 +37,27 @@ DB_PORT = os.getenv("PG_PORT", 5432)
 # -----------------------------
 # Logging configuration
 # -----------------------------
-LOG_FILE = "/home/falamfar/koinstrap_platform/projects/koinstrap/logs/reddit_ingest.log"
-logging.basicConfig(
-    filename=LOG_FILE,
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger("reddit_ingest")
-logger.info("🚀 Starting Reddit ingestion script (DAG-ready)")
+def setup_logger(name: str):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+
+    if not logger.handlers:  # prevents duplicates in Airflow
+        formatter = logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(message)s"
+        )
+
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(formatter)
+
+        logger.addHandler(handler)
+
+    return logger
+
+
+logger = setup_logger(__name__)
+
+
+
 
 # -----------------------------
 # Database connection

@@ -1,24 +1,32 @@
 import psycopg2
+import sys 
 from psycopg2.extras import RealDictCursor
 import os
 import logging
 from dotenv import load_dotenv
 
 # 1. SETUP LOGGING
-LOG_FILE = "/home/falamfar/koinstrap_platform/projects/koinstrap/logs/populate_ml.log"
-logger = logging.getLogger("populate_ml")
-logger.setLevel(logging.INFO)
+def setup_logger(name: str):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
 
-if not logger.handlers:
-    stream_handler = logging.StreamHandler()
-    file_handler = logging.FileHandler(LOG_FILE) 
-    formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
-    stream_handler.setFormatter(formatter)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-    logger.addHandler(file_handler)
+    if not logger.handlers:  # prevents duplicates in Airflow
+        formatter = logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(message)s"
+        )
 
-load_dotenv("/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env")
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(formatter)
+
+        logger.addHandler(handler)
+
+    return logger
+
+
+logger = setup_logger(__name__)
+
+ENV_PATH = "/app/config/.env"
+load_dotenv(ENV_PATH)
 
 def populate_features():
     logger.info("🏗️ Koin-Bot is building/updating the ML Feature table...")

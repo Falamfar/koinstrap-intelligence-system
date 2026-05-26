@@ -15,6 +15,7 @@ Features:
 import os
 import logging
 import psycopg2
+import sys
 from psycopg2 import Error
 from psycopg2.extras import RealDictCursor
 from datetime import datetime, timezone
@@ -25,7 +26,8 @@ from typing import List, Dict
 # ---------------------------------------------------------
 # 1️⃣ ENVIRONMENT CONFIGURATION
 # ---------------------------------------------------------
-load_dotenv("/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env")
+ENV_PATH = "/app/config/.env"
+load_dotenv(ENV_PATH)
 
 DB_HOST = os.getenv("PG_HOST")
 DB_USER = os.getenv("PG_USER")
@@ -36,13 +38,25 @@ DB_PORT = os.getenv("PG_PORT")
 # ---------------------------------------------------------
 # 2️⃣ LOGGER CONFIGURATION
 # ---------------------------------------------------------
-logger = logging.getLogger("analyze_crypto_metrics")
-logger.setLevel(logging.INFO)
-if not logger.handlers:
-    file_handler = logging.FileHandler("/home/falamfar/koinstrap_platform/projects/koinstrap/logs/analyze_metrics.log")
-    formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+
+def setup_logger(name: str):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+
+    if not logger.handlers:  # prevents duplicates in Airflow
+        formatter = logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(message)s"
+        )
+
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(formatter)
+
+        logger.addHandler(handler)
+
+    return logger
+
+
+logger = setup_logger(__name__)
 
 # ---------------------------------------------------------
 # 3️⃣ CONSTANTS & THRESHOLDS

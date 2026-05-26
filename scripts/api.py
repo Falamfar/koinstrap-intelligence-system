@@ -7,7 +7,8 @@ from fastapi import FastAPI, HTTPException
 from dotenv import load_dotenv
 
 # Path Configuration
-LOG_PATH = "/home/falamfar/koinstrap_platform/projects/koinstrap/logs/api.log"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_PATH = os.path.join(BASE_DIR, "../logs/api.log")
 ENV_PATH = "/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env"
 
 # Logging Setup
@@ -39,7 +40,7 @@ def get_db_connection():
         return conn
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
-        raise e
+        raise HTTPException(status_code=500, detail="Database connection string failure.")
 
 # ---  API ENDPOINTS ---    
 
@@ -68,7 +69,7 @@ def get_all_insights():
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
-        # Retrieves the most recent entry for each unique symbol
+        # VERIFIED: Keeping your exact schema naming conventions
         query = """
             SELECT DISTINCT ON (symbol) 
                 symbol, prediction_label, confidence_score, james_narrative, created_at
@@ -77,8 +78,8 @@ def get_all_insights():
         """
         cur.execute(query)
         results = cur.fetchall()
-
         cur.close()
+
         return {
             "status": "success",
             "count": len(results),
@@ -88,7 +89,7 @@ def get_all_insights():
 
     except Exception as e:
         logger.error(f"Error fetching all insights: {e}")
-        return {"status": "error", "message": "Internal Server Error"}
+        raise HTTPException(status_code=500, detail="Internal Server Error retrieving feature sets.")
     finally:
         if conn:
             conn.close()
@@ -105,6 +106,7 @@ def get_james_insight(symbol: str):
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
+        # VERIFIED: Keeping your exact schema naming conventions
         query = """
             SELECT symbol, prediction_label, confidence_score, james_narrative, created_at
             FROM signals_live
@@ -114,7 +116,6 @@ def get_james_insight(symbol: str):
         """
         cur.execute(query, (symbol,))
         result = cur.fetchone()
-
         cur.close()
 
         if not result:
@@ -131,7 +132,7 @@ def get_james_insight(symbol: str):
         raise he
     except Exception as e:
         logger.error(f"Error fetching insight for {symbol}: {e}")
-        return {"status": "error", "message": "Internal Server Error"}
+        raise HTTPException(status_code=500, detail=f"Internal Server Error processing request for {symbol}.")
     finally:
         if conn:
             conn.close()

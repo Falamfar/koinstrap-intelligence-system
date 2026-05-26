@@ -15,15 +15,39 @@ import os
 import logging
 import requests
 import psycopg2 
+import sys
 from psycopg2 import Error 
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from typing import List, Dict
 
+#setup logging
+
+def setup_logger(name: str):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+
+    if not logger.handlers:  # prevents duplicates in Airflow
+        formatter = logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(message)s"
+        )
+
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(formatter)
+
+        logger.addHandler(handler)
+
+    return logger
+
+
+logger = setup_logger(__name__)
+
 # ---------------------------------------------------------
 # 1️⃣ ENVIRONMENT CONFIGURATION
 # ---------------------------------------------------------
-load_dotenv("/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env")
+ENV_PATH = "/app/config/.env"  
+
+load_dotenv(ENV_PATH)
 
 COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY")
 DB_HOST = os.getenv("PG_HOST")
@@ -32,16 +56,7 @@ DB_PASSWORD = os.getenv("PG_PASSWORD")
 DB_NAME = os.getenv("PG_NAME") 
 DB_PORT = os.getenv("PG_PORT")
 
-# ---------------------------------------------------------
-# 2️⃣ LOGGER CONFIGURATION
-# ---------------------------------------------------------
-logger = logging.getLogger("coingecko_ingestion")
-logger.setLevel(logging.INFO)
-if not logger.handlers:
-    file_handler = logging.FileHandler("/home/falamfar/koinstrap_platform/projects/koinstrap/logs/ingest_coingecko_v1.log")
-    formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+
 
 # ---------------------------------------------------------
 # 3️⃣ DATABASE CONNECTION
