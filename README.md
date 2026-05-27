@@ -76,6 +76,8 @@ Pipeline features:
 - Retry logic for external requests  
 - Structured logging for observability  
 
+---
+
 ### ✅ Layer 4 – Metrics & Feature Engineering (Optimized)
 - Feature Store: Implemented ml_features as the centralized "Source of Truth" for all downstream intelligence.
 
@@ -104,13 +106,14 @@ Pipeline features:
 
 - Predictive Certainty: Every insight is accompanied by a mathematical confidence score (e.g., "82% Probability of UP").
 
--FastAPI Integration: Developed a RESTful API (api.py) that serves real-time JSON packets to the KoinStrap mobile application.
+- FastAPI Integration: Developed a RESTful API (api.py) that serves real-time JSON packets to the KoinStrap mobile application.
+
 ---
 
 
 
 
-### layer 6 -  Containerization with Docker for deployment to AWS/GCP.
+### ✅ layer 6 -  Containerization with Docker for deployment to AWS/GCP.
 
 
 ---
