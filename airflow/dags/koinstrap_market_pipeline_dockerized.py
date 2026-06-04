@@ -1,4 +1,4 @@
-from airflow import DAG 
+from airflow import DAG
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.models import Variable
 from datetime import datetime, timedelta
@@ -17,13 +17,13 @@ docker_common_args = {
     'image': 'koinstrap-api:latest',
     'docker_url': 'unix://var/run/docker.sock',
     'dns': ['8.8.8.8', '8.8.4.4'],
-    'network_mode': 'koinstrap_default',
+    'network_mode': 'koinstrap-intelligence-system_default' ,
     'auto_remove': True,
     'mount_tmp_dir': False,
     'tty': True, # Explicit Logging: This streams container output to the Airflow UI
     'mounts': [
         Mount(
-            source='/home/falamfar/koinstrap_platform/projects/koinstrap/scripts',
+            source='/home/ubuntu/koinstrap-intelligence-system/scripts',
             target='/app/scripts',
             type='bind'
         )

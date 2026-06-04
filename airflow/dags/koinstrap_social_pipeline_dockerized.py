@@ -18,7 +18,7 @@ docker_common_args = {
 
     'mounts': [
         Mount(
-            source='/home/falamfar/koinstrap_platform/projects/koinstrap/scripts',
+            source='/home/ubuntu/koinstrap-intelligence-system/scripts',
             target='/app/scripts',
             type='bind'
         )

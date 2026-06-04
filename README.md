@@ -4,7 +4,7 @@
 
 The **KoinStrap Decision Intelligence System** is a **hybrid data and AI engineering platform** designed to empower strategic decision-making for cryptocurrency operations.  
 
-The platform’s mission is not just to collect crypto prices, but to **transform raw market and social data into structured, actionable intelligence**. These insights are delivered via confidence scores, trend signals, and eventually AI-generated recommendations, supporting traders and stakeholders with **real-time decision guidance**.  
+The platform’s mission is not just to collect crypto prices, but to **transform raw market and social data into structured, actionable intelligence**. These insights are delivered via confidence scores, trend signals, and AI-generated recommendations, supporting traders and stakeholders with **real-time decision guidance**.  
 
 The system is built in **modular layers**, allowing incremental evolution from local development to **cloud-deployed production-grade infrastructure**.
 
@@ -29,154 +29,109 @@ To achieve this, the system follows a **decision-intelligence pipeline**, combin
 
 **Current Layers:**
 
-1. Market Data Acquisition (CoinGecko)  
+1. Market Data Acquisition (Coingecko WebSockets API)  
 2. Social Data Acquisition (Reddit public endpoints)  
-3. Ingestion & Normalization (PostgreSQL), Optimized for AI feature engineering and     cloud-readiness.  
+3. Ingestion & Normalization (PostgreSQL), Optimized for AI feature engineering and cloud production.  
 4. Metrics & Signal Computation  
-
 5. AI Insight & Recommendation Engine 
+6. Fully containerized, multi-service Docker architecture that is completely environment-agnostic.
+7. Cloud Orchestration & Deployment – Fully deployed production environment on AWS EC2.
 
-6. fully containerized, multi-service Docker architecture that is completely environment-agnostic and 100% ready for immediate cloud deployment.
-
-**Planned/Next Evolution:**
-
-7. Cloud-Ready Orchestration & Deployment – automated, scalable, and production-ready  
-
-The modular structure ensures **flexibility, extensibility, and easy cloud migration**.
+The modular structure ensures **flexibility, extensibility, and seamless cloud operations**.
 
 ---
 
 ## Current Implementation Status
 
 ### ✅ Layer 1 – Market Data Acquisition
-- Fully integrated **CoinGecko API**  
-- BTC and ETH market data fetched at controlled intervals  
-- Robust request handling with retries and logging  
+- Fully migrated to the **Coingecko WebSocket API** for streaming telemetry.
+- BTC and ETH market data fetched continuously in real time.
+- Robust network connection handling with automated reconnection and logging.  
 
 ---
 
 ### ✅ Layer 2 – Social Data Acquisition
-- **Reddit public JSON endpoints** integrated (no API keys required)  
-- Keyword-based extraction for BTC and ETH discussions  
-- Sentiment analysis with **VADER NLP**  
-- Structured logging and retry logic for reliability  
-- Integrated into the **confidence score computation**  
+- **Reddit public JSON endpoints** integrated (no API keys required).  
+- Keyword-based extraction for BTC and ETH discussions.  
+- Sentiment analysis with **VADER NLP**.  
+- Structured logging and retry logic for reliability.  
+- Integrated into the **confidence score computation**.  
 
 ---
 
 ### ✅ Layer 3 – Ingestion & Normalization
 
-**Market Data Table:** `raw_crypto_market_data`  
+**Market Data Table:** Live tick tables tracking high-velocity price parameters.  
 **Social Sentiment Table:** `social_sentiment_metrics`  
 
 Pipeline features:  
-- Idempotent inserts, duplicate protection  
-- Transaction-safe with rollback  
-- Normalized timestamps  
-- Retry logic for external requests  
-- Structured logging for observability  
+- Idempotent inserts, duplicate protection.  
+- Transaction-safe with rollback.  
+- Normalized timestamps.  
+- Retry logic for external requests.  
+- Structured logging for observability.  
 
 ---
 
 ### ✅ Layer 4 – Metrics & Feature Engineering (Optimized)
 - Feature Store: Implemented ml_features as the centralized "Source of Truth" for all downstream intelligence.
-
 - Real-Time Momentum: Engineered 5-minute and 15-minute price momentum and trend signals to capture micro-volatility.
-
-- Synchronized Orchestration: Market and Social DAGs are now cross-aligned in Airflow to ensure data freshness every 5 minutes.
-
-- All ingestion pipelines have been migrated from MySQL to PostgreSQL. This enables advanced indexing for AI training sets and ensures compatibility with production-grade cloud environments. Orchestration is fully handled via Airflow.*
-
-
-
-  
+- Synchronized Orchestration: Ingestion and processing DAGs are cross-aligned to match incoming high-velocity data.
+- Core database engine successfully migrated from MySQL to PostgreSQL to handle advanced indexing for training sets and production cloud queries.
 
 ---
-
-
-
-
-
 
 ### ✅ Layer 5 – AI Insight & Recommendation Engine ("James")
 - Hybrid Intelligence: Merged a Random Forest Classifier (Probability/Quant) with Llama-3 via Groq (Narrative/Analyst).
-
-
-- Context-Aware Reasoning: The system now distinguishes between "Neutral Social Sentiment" and "Missing Social Data," ensuring the AI doesn't hallucinate during low-volume periods.
-
-- Predictive Certainty: Every insight is accompanied by a mathematical confidence score (e.g., "82% Probability of UP").
-
-- FastAPI Integration: Developed a RESTful API (api.py) that serves real-time JSON packets to the KoinStrap mobile application.
+- Context-Aware Reasoning: The system distinguishes between "Neutral Social Sentiment" and "Missing Social Data," preventing LLM hallucinations during low-volume periods.
+- Predictive Certainty: Every insight is accompanied by a mathematical confidence score.
+- FastAPI Integration: High-performance backend routing (`api.py`) serving live JSON packages to external UI platforms.
 
 ---
 
+### ✅ Layer 6 – Containerization with Docker
+- Multi-container architecture using Docker and Docker Compose.
+- Decoupled into isolated microservices (FastAPI, PostgreSQL database warehouse, Apache Airflow orchestration layers).
+- Environment-agnostic environment mapping for immediate cold-booting on remote infrastructure.
 
+---
 
-
-### ✅ layer 6 -  Containerization with Docker for deployment to AWS/GCP.
-
+### ✅ Layer 7 – Cloud Orchestration & Deployment
+- Production environment fully deployed and live on an **AWS EC2 instance**.
+- Orchestration fully handled via **Apache Airflow**, executing automated tasks via the `DockerOperator`.
+- Implemented ephemeral task container creation to maximize EC2 resource efficiency.
+- Secure production-level secret management using Airflow Variables and isolated host container mapping, abstracting tokens entirely out of source control.
 
 ---
 
 ## System Capabilities & Demonstrations
 
-- End-to-End Data Pipeline Design: Architecture spanning from raw ingestion to live mobile delivery.
-
-- Multi-Source Ingestion: Automated fetching and normalization of market data (CoinGecko) and high-velocity social signals (Reddit).
-
-- Feature Engineering & ML Inference: Real-time computation of momentum metrics and sentiment scores, serving as inputs for a Random Forest Predictive Brain.
-
-- Hybrid AI Narrative Engine: Integration of quantitative ML predictions with qualitative LLM reasoning (Llama-3.3 via Groq) to produce "James," a human-readable market analyst.
-
-- Production API Layer: High-performance FastAPI implementation for standardized JSON data exchange with external mobile and web applications.
-
-- Infrastructure & Networking: Advanced WSL2-to-Windows PortProxy configuration, enabling secure public access to internal Linux-hosted services.
-
-- Automation & Orchestration: Fully scheduled operations via Apache Airflow, ensuring 5-minute data freshness and decision consistency.
-
-- Observability & Reliability: Integrated logging, PostgreSQL transaction safety, and repository-level Secret Protection (push security).
-
-- Containerization with Docker for deployment to AWS/GCP.
-
-- Cloud-Ready Modular Python: Decoupled design following production standards, ready for Dockerization and AWS/GCP deployment.
+- **End-to-End Data Pipeline Design:** Architecture spanning from raw WebSocket ingestion to live cloud API delivery.
+- **Multi-Source Ingestion:** Automated fetching and normalization of financial telemetry (Coingecko) and high-velocity social signals (Reddit).
+- **Feature Engineering & ML Inference:** Real-time computation of momentum metrics and sentiment scores serving a Random Forest Predictive Brain.
+- **Hybrid AI Narrative Engine:** Integration of quantitative ML predictions with qualitative LLM reasoning to produce "James," a human-readable market analyst.
+- **Production API Layer:** Low-latency FastAPI implementation using raw `psycopg2` and `RealDictCursor` for optimized JSON data exchange.
+- **Automation & Orchestration:** Fully scheduled operations via Apache Airflow, ensuring strict data freshness and decision consistency.
+- **Observability & Reliability:** Integrated logging, PostgreSQL transaction safety, and repository-level Secret Protection.
 
 ---
 
 ## Project Status
 
-- Operational Pipeline: End-to-end automation with local + Airflow orchestration running at 5-minute intervals.
-
-- Production Data Streams: Robust, automated ingestion of CoinGecko (Financial) and Reddit (Sentiment) data.
-
-- Live Intelligence: AI-driven narrative engine ("James") fully integrated, merging Random Forest predictions with Llama-3 reasoning.
-
-- Deployment Ready: High-performance FastAPI delivery layer is active, serving JSON insights via a secure WSL2-to-Public-IP network bridge.
-
-- Production-Ready & Cloud-Ready
-KoinStrap has been completely evolved from a local python prototype into a **fully containerized, multi-service data architecture**. By decoupling the infrastructure into isolated microservices using **Docker** and **Docker Compose**, the platform is completely self-contained, environment-agnostic, and **100% ready for immediate cloud deployment.**
-
+- **Operational Pipeline:** End-to-end cloud automation with Airflow orchestration running on scheduled cron intervals.
+- **Production Data Streams:** Robust, automated streaming of financial and unstructured sentiment data.
+- **Live Intelligence:** AI-driven narrative engine ("James") fully integrated, merging quantitative predictions with automated qualitative reasoning.
+- **Deployment Validated:** High-performance FastAPI delivery layer is actively listening on Port 8000 of the EC2 public interface, serving real-time JSON packets securely across the web.
 
 ---
-
-## Next Steps
-
-
-- Cloud deployment (AWS/GCP/Azure)
-
-
-
-
-
-
 
 ## Notes for Reviewers
 
 This repository serves as a comprehensive portfolio demonstrating advanced, end-to-end backend data engineering and applied artificial intelligence. It explicitly showcases:
 
-* **Production-Grade Containerization & Isolation:** Full implementation of a multi-container architecture using Docker and Docker Compose. Every moving piece—the API, the database warehouse, and the automation layers—lives in its own secure, isolated network environment, completely eliminating local setup discrepancies.
-* **100% Cloud-Ready Infrastructure:** A modern, infrastructure-as-code mindset. Because the entire ecosystem is packaged into a unified configuration, the platform is fully decoupled from local hardware and architected for immediate deployment to an enterprise cloud provider (AWS EC2 or a DigitalOcean Droplet) with a single command.
-* **Automated Data Pipeline Orchestration:** Practical application of Apache Airflow to schedule, coordinate, and monitor concurrent data ingestion flows at strict 5-minute intervals, guaranteeing complete data freshness for predictive models.
-* **Multi-Source Data Fusion & Analytics:** Automated extraction and normalization of high-velocity financial market telemetry (CoinGecko API) paired with unstructured public social sentiment data parsed via Natural Language Processing (VADER NLP).
-* **Hybrid AI Inference & Decision Intelligence:** Integration of an end-to-end Machine Learning pipeline. The platform merges the quantitative precision of a local Random Forest Classifier with the qualitative, context-aware reasoning of Llama-3 (via Groq) to output high-conviction market analyst narratives ("James").
-* **Observability & Failsafe Software Engineering:** A production-first design featuring strict error boundaries (pipelines fail loudly rather than swallowing bad data), optimized database session pooling to reduce connection overhead, and robust repository-level secret protection.
-* **Continuous, Modular Evolution:** A living engineering project showcasing an incremental journey from loose local development scripts into a resilient, automated, and secure microservice platform.
+* **Production-Grade Containerization & Isolation:** Full implementation of a multi-container architecture using Docker and Docker Compose. Every moving piece lives in its own secure, isolated network environment.
+* **Live Cloud Infrastructure:** Deployed directly onto AWS EC2 with an infrastructure-as-code mindset, completely decoupled from local development environments.
+* **Automated Data Pipeline Orchestration:** Practical application of Apache Airflow to schedule, coordinate, and monitor concurrent workflow execution tasks securely.
+* **Multi-Source Data Fusion & Analytics:** Automated extraction and normalization of high-velocity financial market telemetry paired with unstructured text parsed via Natural Language Processing (VADER NLP).
+* **Hybrid AI Inference & Decision Intelligence:** Integration of an end-to-end Machine Learning pipeline merging a local Random Forest Classifier with the qualitative, context-aware reasoning of Llama-3 (via Groq) to output high-conviction market analyst narratives ("James").
+* **Observability & Failsafe Software Engineering:** A production-first design featuring strict error boundaries, optimized database queries, and repository-level secret protection.

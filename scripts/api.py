@@ -9,7 +9,15 @@ from dotenv import load_dotenv
 # Path Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_PATH = os.path.join(BASE_DIR, "../logs/api.log")
-ENV_PATH = "/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env"
+
+ENV_PATH = os.getenv("ENV_PATH", "/home/falamfar/koinstrap_platform/projects/koinstrap/config/.env")
+if os.path.exists(ENV_PATH):
+    load_dotenv(ENV_PATH)
+else:
+    # If the explicit file isn't found, load any .env in the current directory
+    load_dotenv()
+
+os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 
 # Logging Setup
 logging.basicConfig(
